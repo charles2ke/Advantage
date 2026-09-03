@@ -57,6 +57,8 @@ export function validateClaimInput(
     errors.push('The incident date cannot be in the future.')
   } else if (policy && startOfDay(incident) < startOfDay(new Date(policy.startDate))) {
     errors.push('The incident happened before the policy started.')
+  } else if (policy && startOfDay(incident) >= startOfDay(new Date(policy.endDate))) {
+    errors.push('The incident happened after the policy ended.')
   }
 
   if (input.description.trim().length < 20) {
