@@ -44,14 +44,15 @@ export function ClaimsPage() {
       amountClaimed: Number(amountClaimed),
     }
     const policy = state.policies.find((candidate) => candidate.policyNumber === policyNumber)
-    const found = validateClaimInput(input, policy)
+    const now = new Date()
+    const found = validateClaimInput(input, policy, now)
     setErrors(found)
     setSubmittedClaimId(null)
     if (found.length > 0 || !policy) {
       return
     }
     const id = newId()
-    dispatch({ type: 'claim/created', id, input, now: new Date().toISOString() })
+    dispatch({ type: 'claim/created', id, input, now: now.toISOString() })
     setSubmittedClaimId(id)
     setIncidentDate('')
     setDescription('')
