@@ -1,12 +1,14 @@
 import { ProductCard } from '../components/ProductCard'
 import { products } from '../domain/catalog'
 import { formatCurrency } from '../domain/format'
+import { policyStatusOn } from '../domain/policies'
 import { navigate } from '../router'
 import { useApp } from '../state/AppContext'
 
 export function HomePage() {
   const { state } = useApp()
-  const activePolicies = state.policies.filter((policy) => policy.status === 'active')
+  const now = new Date()
+  const activePolicies = state.policies.filter((policy) => policyStatusOn(policy, now) === 'active')
   const openClaims = state.claims.filter(
     (claim) => claim.status !== 'settled' && claim.status !== 'declined',
   )

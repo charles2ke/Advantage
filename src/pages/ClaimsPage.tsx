@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { StatusBadge } from '../components/StatusBadge'
 import { getProduct } from '../domain/catalog'
 import {
@@ -32,6 +32,11 @@ export function ClaimsPage() {
   const [amountClaimed, setAmountClaimed] = useState('')
   const [errors, setErrors] = useState<string[]>([])
   const [submittedReference, setSubmittedReference] = useState<string | null>(null)
+  const nextClaimSequence = useRef(state.sequences.claim)
+
+  useEffect(() => {
+    nextClaimSequence.current = state.sequences.claim
+  }, [state.sequences.claim])
 
   function submitClaim() {
     const input: ClaimInput = {
@@ -47,8 +52,10 @@ export function ClaimsPage() {
     if (found.length > 0 || !policy) {
       return
     }
+    const sequence = nextClaimSequence.current + 1
+    nextClaimSequence.current = sequence
     dispatch({ type: 'claim/created', id: newId(), input, now: new Date().toISOString() })
-    setSubmittedReference(claimReference(state.sequences.claim + 1))
+    setSubmittedReference(claimReference(sequence))
     setIncidentDate('')
     setDescription('')
     setAmountClaimed('')

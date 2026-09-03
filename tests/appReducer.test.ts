@@ -139,6 +139,27 @@ describe('persistence', () => {
     expect(loadState(localStorage)).toEqual(emptyState)
   })
 
+  it('drops invalid persisted items and sequences', () => {
+    const state = run([{ type: 'quote/created', id: 'q1', input: quoteInput, now }])
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        ...state,
+        quotes: [state.quotes[0], 'not a quote'],
+        policies: [42],
+        claims: [null],
+        sequences: { quote: Number.NaN, policy: 1, claim: Number.POSITIVE_INFINITY },
+      }),
+    )
+
+    expect(loadState(localStorage)).toEqual({
+      quotes: state.quotes,
+      policies: [],
+      claims: [],
+      sequences: { quote: 0, policy: 1, claim: 0 },
+    })
+  })
+
   it('falls back to an empty state when storage is unavailable', () => {
     expect(loadState(undefined)).toEqual(emptyState)
   })

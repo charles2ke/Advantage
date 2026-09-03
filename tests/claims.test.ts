@@ -73,6 +73,12 @@ describe('validateClaimInput', () => {
     )
   })
 
+  it('rejects an incident after the policy ended', () => {
+    expect(
+      validateClaimInput(claimInput({ incidentDate: '2027-01-02' }), policy, new Date('2027-02-01')),
+    ).toContain('The incident happened after the policy ended.')
+  })
+
   it('requires a meaningful description', () => {
     expect(validateClaimInput(claimInput({ description: 'Bumped it' }), policy, now)).toContain(
       'Describe what happened in at least 20 characters.',
