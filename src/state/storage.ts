@@ -164,7 +164,7 @@ function isClaim(value: unknown): value is Claim {
   )
 }
 
-function validSequence(value: unknown): number {
+function coerceSequence(value: unknown): number {
   return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 ? value : 0
 }
 
@@ -188,9 +188,9 @@ export function loadState(storage: Storage | undefined = safeStorage()): AppStat
       policies: Array.isArray(parsed.policies) ? parsed.policies.filter(isPolicy) : [],
       claims: Array.isArray(parsed.claims) ? parsed.claims.filter(isClaim) : [],
       sequences: {
-        quote: validSequence(sequences.quote),
-        policy: validSequence(sequences.policy),
-        claim: validSequence(sequences.claim),
+        quote: coerceSequence(sequences.quote),
+        policy: coerceSequence(sequences.policy),
+        claim: coerceSequence(sequences.claim),
       },
     }
   } catch {

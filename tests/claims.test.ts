@@ -75,7 +75,7 @@ describe('validateClaimInput', () => {
 
   it('rejects an incident after the policy ended', () => {
     expect(
-      validateClaimInput(claimInput({ incidentDate: '2027-01-02' }), policy, new Date('2027-02-01')),
+      validateClaimInput(claimInput({ incidentDate: '2027-03-01' }), policy, new Date('2027-04-01')),
     ).toContain('The incident happened after the policy ended.')
   })
 
