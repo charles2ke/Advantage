@@ -82,6 +82,10 @@ describe('policy lifecycle', () => {
     expect(isRenewable(cancelPolicy(policy), new Date('2026-12-20T00:00:00.000Z'))).toBe(false)
   })
 
+  it('stays renewable once it has lapsed, so it can be reinstated', () => {
+    expect(isRenewable(policy, new Date('2027-06-01T00:00:00.000Z'))).toBe(true)
+  })
+
   it('extends the cover period from the current expiry date', () => {
     const renewed = renewPolicy(policy, new Date('2026-12-20T00:00:00.000Z'))
     expect(renewed.startDate).toBe('2027-01-01T00:00:00.000Z')

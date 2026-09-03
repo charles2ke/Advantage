@@ -53,6 +53,10 @@ export function policyStatusOn(policy: Policy, on: Date): PolicyStatus {
   return new Date(policy.endDate).getTime() <= on.getTime() ? 'lapsed' : 'active'
 }
 
+/**
+ * Renewal opens in the 30 days before expiry and stays open afterwards, so a
+ * lapsed policy can still be reinstated by the policyholder.
+ */
 export function isRenewable(policy: Policy, on: Date, withinDays = 30): boolean {
   if (policy.status === 'cancelled') {
     return false

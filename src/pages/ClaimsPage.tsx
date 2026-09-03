@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { StatusBadge } from '../components/StatusBadge'
 import { getProduct } from '../domain/catalog'
 import {
+  claimReference,
   claimStatusLabels,
   claimTransitions,
   settlementAmount,
@@ -30,7 +31,7 @@ export function ClaimsPage() {
   const [description, setDescription] = useState('')
   const [amountClaimed, setAmountClaimed] = useState('')
   const [errors, setErrors] = useState<string[]>([])
-  const [submitted, setSubmitted] = useState(false)
+  const [submittedReference, setSubmittedReference] = useState<string | null>(null)
 
   function submitClaim() {
     const input: ClaimInput = {
@@ -42,18 +43,16 @@ export function ClaimsPage() {
     const policy = state.policies.find((candidate) => candidate.policyNumber === policyNumber)
     const found = validateClaimInput(input, policy)
     setErrors(found)
-    setSubmitted(false)
+    setSubmittedReference(null)
     if (found.length > 0 || !policy) {
       return
     }
     dispatch({ type: 'claim/created', id: newId(), input, now: new Date().toISOString() })
-    setSubmitted(true)
+    setSubmittedReference(claimReference(state.sequences.claim + 1))
     setIncidentDate('')
     setDescription('')
     setAmountClaimed('')
   }
-
-  const latestClaim = state.claims[0]
 
   return (
     <div className="page">
@@ -85,9 +84,9 @@ export function ClaimsPage() {
                 </ul>
               </div>
             )}
-            {submitted && latestClaim && (
+            {submittedReference && (
               <div className="alert alert--success" role="status">
-                <strong>Claim {latestClaim.reference} submitted.</strong>
+                <strong>Claim {submittedReference} submitted.</strong>
                 <p>We will be in touch within one working day.</p>
               </div>
             )}
