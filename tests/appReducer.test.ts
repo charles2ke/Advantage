@@ -148,7 +148,7 @@ describe('persistence', () => {
         quotes: [state.quotes[0], 'not a quote'],
         policies: [42],
         claims: [null],
-        sequences: { quote: Number.NaN, policy: 1, claim: Number.POSITIVE_INFINITY },
+        sequences: { quote: Number.NaN, policy: 1, claim: 1.5 },
       }),
     )
 

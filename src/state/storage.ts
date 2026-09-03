@@ -55,8 +55,14 @@ function isProductId(value: unknown): value is ProductId {
   return value === 'auto' || value === 'home' || value === 'life' || value === 'travel'
 }
 
+const policyStatuses: Record<PolicyStatus, true> = {
+  active: true,
+  lapsed: true,
+  cancelled: true,
+}
+
 function isPolicyStatus(value: unknown): value is PolicyStatus {
-  return value === 'active' || value === 'lapsed' || value === 'cancelled'
+  return isString(value) && value in policyStatuses
 }
 
 function isClaimStatus(value: unknown): value is ClaimStatus {
@@ -165,7 +171,7 @@ function isClaim(value: unknown): value is Claim {
 }
 
 function coerceSequence(value: unknown): number {
-  return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : 0
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0 ? value : 0
 }
 
 /** Reads persisted state, falling back to an empty state when it is missing or corrupt. */
