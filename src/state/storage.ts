@@ -165,7 +165,7 @@ function isClaim(value: unknown): value is Claim {
 }
 
 function coerceSequence(value: unknown): number {
-  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 ? value : 0
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : 0
 }
 
 /** Reads persisted state, falling back to an empty state when it is missing or corrupt. */

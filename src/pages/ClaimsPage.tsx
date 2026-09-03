@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { StatusBadge } from '../components/StatusBadge'
 import { getProduct } from '../domain/catalog'
 import {
@@ -31,8 +31,10 @@ export function ClaimsPage() {
   const [amountClaimed, setAmountClaimed] = useState('')
   const [errors, setErrors] = useState<string[]>([])
   const [submittedClaimId, setSubmittedClaimId] = useState<string | null>(null)
-  const submittedReference =
-    state.claims.find((claim) => claim.id === submittedClaimId)?.reference ?? null
+  const submittedReference = useMemo(
+    () => state.claims.find((claim) => claim.id === submittedClaimId)?.reference ?? null,
+    [state.claims, submittedClaimId],
+  )
 
   function submitClaim() {
     const input: ClaimInput = {
