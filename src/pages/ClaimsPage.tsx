@@ -1,8 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import { StatusBadge } from '../components/StatusBadge'
 import { getProduct } from '../domain/catalog'
 import {
-  claimReference,
   claimStatusLabels,
   claimTransitions,
   settlementAmount,
@@ -31,12 +30,9 @@ export function ClaimsPage() {
   const [description, setDescription] = useState('')
   const [amountClaimed, setAmountClaimed] = useState('')
   const [errors, setErrors] = useState<string[]>([])
-  const [submittedReference, setSubmittedReference] = useState<string | null>(null)
-  const nextClaimSequence = useRef(state.sequences.claim)
-
-  useEffect(() => {
-    nextClaimSequence.current = state.sequences.claim
-  }, [state.sequences.claim])
+  const [submittedClaimId, setSubmittedClaimId] = useState<string | null>(null)
+  const submittedReference =
+    state.claims.find((claim) => claim.id === submittedClaimId)?.reference ?? null
 
   function submitClaim() {
     const input: ClaimInput = {
@@ -48,14 +44,13 @@ export function ClaimsPage() {
     const policy = state.policies.find((candidate) => candidate.policyNumber === policyNumber)
     const found = validateClaimInput(input, policy)
     setErrors(found)
-    setSubmittedReference(null)
+    setSubmittedClaimId(null)
     if (found.length > 0 || !policy) {
       return
     }
-    const sequence = nextClaimSequence.current + 1
-    nextClaimSequence.current = sequence
-    dispatch({ type: 'claim/created', id: newId(), input, now: new Date().toISOString() })
-    setSubmittedReference(claimReference(sequence))
+    const id = newId()
+    dispatch({ type: 'claim/created', id, input, now: new Date().toISOString() })
+    setSubmittedClaimId(id)
     setIncidentDate('')
     setDescription('')
     setAmountClaimed('')
