@@ -39,13 +39,18 @@ export function AdminPage() {
   }
 
   function save() {
-    const found = validateSettings(draft)
+    const settings = {
+      ...draft,
+      brandName: draft.brandName.trim(),
+      supportEmail: draft.supportEmail.trim(),
+    }
+    const found = validateSettings(settings)
     setErrors(found)
     if (found.length > 0) {
       setSaved(false)
       return
     }
-    dispatch({ type: 'settings/updated', settings: { ...draft, brandName: draft.brandName.trim() } })
+    dispatch({ type: 'settings/updated', settings })
     setSaved(true)
   }
 
