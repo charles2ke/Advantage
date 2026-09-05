@@ -178,6 +178,8 @@ export function coerceSettings(value: unknown): PlatformSettings {
   if (!isRecord(value)) {
     return defaultSettings
   }
+  // An empty or unrecognised list would leave nothing on sale, so fall back to
+  // the full catalogue; the admin portal never saves an empty selection.
   const enabled = isStringArray(value.enabledProducts)
     ? value.enabledProducts.filter(isProductId)
     : []

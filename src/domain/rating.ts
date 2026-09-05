@@ -2,10 +2,12 @@ import { getProduct } from './catalog'
 import { defaultSettings, type PlatformSettings } from './settings'
 import type { Applicant, PremiumBreakdown, Product, Quote, QuoteInput } from './types'
 
-/**
- * The shipped defaults. They are the fallback whenever no administrator
- * configured settings are supplied (see `settings.ts` and the admin portal).
+/*
+ * The constants below are the shipped defaults. They are the fallback whenever
+ * no administrator configured settings are supplied (see `settings.ts` and the
+ * admin portal).
  */
+
 /** Insurance premium tax applied to the net premium. */
 export const TAX_RATE = defaultSettings.taxRate
 /** Loading applied when the customer pays monthly instead of annually. */

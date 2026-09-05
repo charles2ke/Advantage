@@ -52,8 +52,8 @@ export function AdminPage() {
   function restoreDefaults() {
     setDraft(defaultSettings)
     setErrors([])
-    setSaved(false)
     dispatch({ type: 'settings/reset' })
+    setSaved(true)
   }
 
   function clearData() {
@@ -240,6 +240,7 @@ export function AdminPage() {
           <button type="button" className="button button--secondary" onClick={restoreDefaults}>
             Restore defaults
           </button>
+          <span className="field__help">Restoring the defaults saves them straight away.</span>
         </div>
       </section>
 
