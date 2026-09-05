@@ -1,3 +1,10 @@
+import {
+  defaultSettings,
+  isRate,
+  MAX_QUOTE_VALIDITY_DAYS,
+  MIN_QUOTE_VALIDITY_DAYS,
+  type PlatformSettings,
+} from '../domain/settings'
 import type {
   Applicant,
   Claim,
@@ -12,6 +19,7 @@ import type {
 } from '../domain/types'
 
 export interface AppState {
+  settings: PlatformSettings
   quotes: Quote[]
   policies: Policy[]
   claims: Claim[]
@@ -23,6 +31,7 @@ export interface AppState {
 }
 
 export const emptyState: AppState = {
+  settings: defaultSettings,
   quotes: [],
   policies: [],
   claims: [],
@@ -41,6 +50,27 @@ function isString(value: unknown): value is string {
 
 function isFiniteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value)
+}
+
+function coerceSupportEmail(value: unknown): string {
+  if (!isString(value)) {
+    return defaultSettings.supportEmail
+  }
+  const email = value.trim()
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : defaultSettings.supportEmail
+}
+
+function isRateValue(value: unknown): value is number {
+  return isFiniteNumber(value) && isRate(value)
+}
+
+function isQuoteValidityDays(value: unknown): value is number {
+  return (
+    isFiniteNumber(value) &&
+    Number.isInteger(value) &&
+    value >= MIN_QUOTE_VALIDITY_DAYS &&
+    value <= MAX_QUOTE_VALIDITY_DAYS
+  )
 }
 
 function isStringArray(value: unknown): value is string[] {
@@ -170,6 +200,39 @@ function isClaim(value: unknown): value is Claim {
   )
 }
 
+/** Reads settings from persisted state, falling back per field to the defaults. */
+export function coerceSettings(value: unknown): PlatformSettings {
+  if (!isRecord(value)) {
+    return defaultSettings
+  }
+  // An empty or unrecognised list would leave nothing on sale, so fall back to
+  // the full catalogue; the admin portal never saves an empty selection.
+  const enabled = isStringArray(value.enabledProducts)
+    ? value.enabledProducts.filter(isProductId)
+    : []
+
+  return {
+    brandName: isString(value.brandName) && value.brandName.trim()
+      ? value.brandName
+      : defaultSettings.brandName,
+    supportEmail: coerceSupportEmail(value.supportEmail),
+    taxRate: isRateValue(value.taxRate) ? value.taxRate : defaultSettings.taxRate,
+    monthlyLoading: isRateValue(value.monthlyLoading)
+      ? value.monthlyLoading
+      : defaultSettings.monthlyLoading,
+    loyaltyDiscountPerPolicy: isRateValue(value.loyaltyDiscountPerPolicy)
+      ? value.loyaltyDiscountPerPolicy
+      : defaultSettings.loyaltyDiscountPerPolicy,
+    maxLoyaltyDiscount: isRateValue(value.maxLoyaltyDiscount)
+      ? value.maxLoyaltyDiscount
+      : defaultSettings.maxLoyaltyDiscount,
+    quoteValidityDays: isQuoteValidityDays(value.quoteValidityDays)
+      ? value.quoteValidityDays
+      : defaultSettings.quoteValidityDays,
+    enabledProducts: enabled.length > 0 ? enabled : defaultSettings.enabledProducts,
+  }
+}
+
 function coerceSequence(value: unknown): number {
   return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 ? value : 0
 }
@@ -190,6 +253,7 @@ export function loadState(storage: Storage | undefined = safeStorage()): AppStat
     }
     const sequences = isRecord(parsed.sequences) ? parsed.sequences : {}
     return {
+      settings: coerceSettings(parsed.settings),
       quotes: Array.isArray(parsed.quotes) ? parsed.quotes.filter(isQuote) : [],
       policies: Array.isArray(parsed.policies) ? parsed.policies.filter(isPolicy) : [],
       claims: Array.isArray(parsed.claims) ? parsed.claims.filter(isClaim) : [],

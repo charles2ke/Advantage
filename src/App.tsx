@@ -1,4 +1,5 @@
 import { useRoute } from './router'
+import { AdminPage } from './pages/AdminPage'
 import { ClaimsPage } from './pages/ClaimsPage'
 import { HomePage } from './pages/HomePage'
 import { PoliciesPage } from './pages/PoliciesPage'
@@ -10,6 +11,7 @@ const navItems = [
   { path: '/quote', label: 'Get a quote' },
   { path: '/policies', label: 'Policies' },
   { path: '/claims', label: 'Claims' },
+  { path: '/admin', label: 'Admin' },
 ]
 
 function isCurrent(navPath: string, segments: string[]): boolean {
@@ -36,6 +38,9 @@ export function App() {
     case 'claims':
       page = <ClaimsPage />
       break
+    case 'admin':
+      page = <AdminPage />
+      break
     default:
       page = (
         <div className="page">
@@ -56,7 +61,7 @@ export function App() {
               A
             </span>
             <span>
-              Advantage
+              {state.settings.brandName}
               <span className="brand__tag"> — your one stop insurance platform</span>
             </span>
           </a>
@@ -82,8 +87,11 @@ export function App() {
 
       <footer className="site-footer">
         <div className="site-footer__inner">
-          <span>Advantage Insurance — a demonstration platform. No real cover is provided.</span>
-          <span>Quotes and policies are stored in this browser only.</span>
+          <span>
+            {state.settings.brandName} Insurance — a demonstration platform. No real cover is
+            provided.
+          </span>
+          <span>Need help? {state.settings.supportEmail}</span>
         </div>
       </footer>
     </div>

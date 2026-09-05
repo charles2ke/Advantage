@@ -1,7 +1,7 @@
 import { ProductCard } from '../components/ProductCard'
-import { products } from '../domain/catalog'
 import { formatCurrency } from '../domain/format'
 import { policyStatusOn } from '../domain/policies'
+import { availableProducts } from '../domain/settings'
 import { navigate } from '../router'
 import { useApp } from '../state/AppContext'
 
@@ -13,6 +13,7 @@ export function HomePage() {
     (claim) => claim.status !== 'settled' && claim.status !== 'declined',
   )
   const annualSpend = activePolicies.reduce((total, policy) => total + policy.premium.total, 0)
+  const catalogue = availableProducts(state.settings)
 
   return (
     <div className="page">
@@ -82,7 +83,7 @@ export function HomePage() {
           <p className="field__help">Every product is quoted instantly, with no obligation.</p>
         </div>
         <div className="grid grid--products">
-          {products.map((product) => (
+          {catalogue.map((product) => (
             <ProductCard key={product.id} product={product} />
           ))}
         </div>
