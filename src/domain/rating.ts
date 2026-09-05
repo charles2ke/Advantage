@@ -1,15 +1,20 @@
 import { getProduct } from './catalog'
+import { defaultSettings, type PlatformSettings } from './settings'
 import type { Applicant, PremiumBreakdown, Product, Quote, QuoteInput } from './types'
 
+/**
+ * The shipped defaults. They are the fallback whenever no administrator
+ * configured settings are supplied (see `settings.ts` and the admin portal).
+ */
 /** Insurance premium tax applied to the net premium. */
-export const TAX_RATE = 0.12
+export const TAX_RATE = defaultSettings.taxRate
 /** Loading applied when the customer pays monthly instead of annually. */
-export const MONTHLY_LOADING = 0.05
+export const MONTHLY_LOADING = defaultSettings.monthlyLoading
 /** Discount granted per policy already held, capped by MAX_LOYALTY_DISCOUNT. */
-export const LOYALTY_DISCOUNT_PER_POLICY = 0.05
-export const MAX_LOYALTY_DISCOUNT = 0.15
+export const LOYALTY_DISCOUNT_PER_POLICY = defaultSettings.loyaltyDiscountPerPolicy
+export const MAX_LOYALTY_DISCOUNT = defaultSettings.maxLoyaltyDiscount
 /** Number of days a quote stays valid. */
-export const QUOTE_VALIDITY_DAYS = 30
+export const QUOTE_VALIDITY_DAYS = defaultSettings.quoteValidityDays
 
 export function roundCurrency(value: number): number {
   return Math.round(value * 100) / 100
@@ -52,16 +57,23 @@ function coverageRate(product: Product, coverageIds: string[]): number {
     .reduce((total, coverage) => total + coverage.rate, 0)
 }
 
-export function loyaltyRate(existingPolicies: number): number {
+export function loyaltyRate(
+  existingPolicies: number,
+  settings: PlatformSettings = defaultSettings,
+): number {
   const policies = Math.max(0, Math.floor(existingPolicies))
-  return Math.min(policies * LOYALTY_DISCOUNT_PER_POLICY, MAX_LOYALTY_DISCOUNT)
+  return Math.min(policies * settings.loyaltyDiscountPerPolicy, settings.maxLoyaltyDiscount)
 }
 
 /**
  * Rates a quote request. The engine is deterministic: the same input always
  * produces the same premium, which keeps quotes reproducible and testable.
  */
-export function ratePremium(input: QuoteInput, now: Date = new Date()): PremiumBreakdown {
+export function ratePremium(
+  input: QuoteInput,
+  now: Date = new Date(),
+  settings: PlatformSettings = defaultSettings,
+): PremiumBreakdown {
   const product = getProduct(input.productId)
   const sumInsured = Math.min(
     Math.max(input.sumInsured, product.sumInsured.min),
@@ -87,14 +99,14 @@ export function ratePremium(input: QuoteInput, now: Date = new Date()): PremiumB
   )
 
   const subtotal = withCoverages + excessAdjustment
-  const loyaltyDiscount = roundCurrency(subtotal * loyaltyRate(input.existingPolicies))
+  const loyaltyDiscount = roundCurrency(subtotal * loyaltyRate(input.existingPolicies, settings))
 
   const netPremium = roundCurrency(
     Math.max(subtotal - loyaltyDiscount, product.minimumPremium),
   )
-  const tax = roundCurrency(netPremium * TAX_RATE)
+  const tax = roundCurrency(netPremium * settings.taxRate)
   const total = roundCurrency(netPremium + tax)
-  const monthly = roundCurrency((total * (1 + MONTHLY_LOADING)) / 12)
+  const monthly = roundCurrency((total * (1 + settings.monthlyLoading)) / 12)
 
   return {
     base,
@@ -167,10 +179,11 @@ export function quoteReference(productId: string, sequence: number): string {
 
 export function createQuote(
   input: QuoteInput,
-  options: { id: string; sequence: number; now?: Date },
+  options: { id: string; sequence: number; now?: Date; settings?: PlatformSettings },
 ): Quote {
   const now = options.now ?? new Date()
-  const expiresAt = new Date(now.getTime() + QUOTE_VALIDITY_DAYS * 24 * 60 * 60 * 1000)
+  const settings = options.settings ?? defaultSettings
+  const expiresAt = new Date(now.getTime() + settings.quoteValidityDays * 24 * 60 * 60 * 1000)
 
   return {
     id: options.id,
@@ -179,6 +192,6 @@ export function createQuote(
     createdAt: now.toISOString(),
     expiresAt: expiresAt.toISOString(),
     input,
-    premium: ratePremium(input, now),
+    premium: ratePremium(input, now, settings),
   }
 }

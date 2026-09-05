@@ -95,4 +95,36 @@ describe('Advantage platform', () => {
 
     expect(screen.getByText(/before the policy started/i)).toBeInTheDocument()
   })
+
+  it('sets the platform up from the admin portal', async () => {
+    const user = userEvent.setup()
+    renderApp()
+
+    await user.click(screen.getByRole('link', { name: /admin/i }))
+    expect(screen.getByRole('heading', { name: /admin portal/i })).toBeInTheDocument()
+
+    const brandName = screen.getByLabelText(/platform name/i)
+    await user.clear(brandName)
+    await user.type(brandName, 'Northwind Cover')
+    await user.click(screen.getByRole('checkbox', { name: /travel insurance/i }))
+    await user.click(screen.getByRole('button', { name: /save settings/i }))
+
+    expect(screen.getByRole('status')).toHaveTextContent(/settings saved/i)
+    expect(screen.getAllByRole('banner')[0]).toHaveTextContent('Northwind Cover')
+
+    await user.click(screen.getByRole('link', { name: /home/i }))
+    expect(screen.queryByRole('heading', { name: 'Travel insurance' })).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Motor insurance' })).toBeInTheDocument()
+  })
+
+  it('reports invalid platform settings', async () => {
+    const user = userEvent.setup()
+    renderApp()
+
+    await user.click(screen.getByRole('link', { name: /admin/i }))
+    await user.clear(screen.getByLabelText(/support email/i))
+    await user.click(screen.getByRole('button', { name: /save settings/i }))
+
+    expect(screen.getByRole('alert')).toHaveTextContent(/valid support email/i)
+  })
 })

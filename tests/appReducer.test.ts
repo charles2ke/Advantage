@@ -153,6 +153,7 @@ describe('persistence', () => {
     )
 
     expect(loadState(localStorage)).toEqual({
+      settings: state.settings,
       quotes: state.quotes,
       policies: [],
       claims: [],

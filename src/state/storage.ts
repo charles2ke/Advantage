@@ -1,3 +1,4 @@
+import { defaultSettings, type PlatformSettings } from '../domain/settings'
 import type {
   Applicant,
   Claim,
@@ -12,6 +13,7 @@ import type {
 } from '../domain/types'
 
 export interface AppState {
+  settings: PlatformSettings
   quotes: Quote[]
   policies: Policy[]
   claims: Claim[]
@@ -23,6 +25,7 @@ export interface AppState {
 }
 
 export const emptyState: AppState = {
+  settings: defaultSettings,
   quotes: [],
   policies: [],
   claims: [],
@@ -170,6 +173,37 @@ function isClaim(value: unknown): value is Claim {
   )
 }
 
+/** Reads settings from persisted state, falling back per field to the defaults. */
+export function coerceSettings(value: unknown): PlatformSettings {
+  if (!isRecord(value)) {
+    return defaultSettings
+  }
+  const enabled = isStringArray(value.enabledProducts)
+    ? value.enabledProducts.filter(isProductId)
+    : []
+
+  return {
+    brandName: isString(value.brandName) && value.brandName.trim()
+      ? value.brandName
+      : defaultSettings.brandName,
+    supportEmail: isString(value.supportEmail) ? value.supportEmail : defaultSettings.supportEmail,
+    taxRate: isFiniteNumber(value.taxRate) ? value.taxRate : defaultSettings.taxRate,
+    monthlyLoading: isFiniteNumber(value.monthlyLoading)
+      ? value.monthlyLoading
+      : defaultSettings.monthlyLoading,
+    loyaltyDiscountPerPolicy: isFiniteNumber(value.loyaltyDiscountPerPolicy)
+      ? value.loyaltyDiscountPerPolicy
+      : defaultSettings.loyaltyDiscountPerPolicy,
+    maxLoyaltyDiscount: isFiniteNumber(value.maxLoyaltyDiscount)
+      ? value.maxLoyaltyDiscount
+      : defaultSettings.maxLoyaltyDiscount,
+    quoteValidityDays: isFiniteNumber(value.quoteValidityDays)
+      ? value.quoteValidityDays
+      : defaultSettings.quoteValidityDays,
+    enabledProducts: enabled.length > 0 ? enabled : defaultSettings.enabledProducts,
+  }
+}
+
 function coerceSequence(value: unknown): number {
   return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 ? value : 0
 }
@@ -190,6 +224,7 @@ export function loadState(storage: Storage | undefined = safeStorage()): AppStat
     }
     const sequences = isRecord(parsed.sequences) ? parsed.sequences : {}
     return {
+      settings: coerceSettings(parsed.settings),
       quotes: Array.isArray(parsed.quotes) ? parsed.quotes.filter(isQuote) : [],
       policies: Array.isArray(parsed.policies) ? parsed.policies.filter(isPolicy) : [],
       claims: Array.isArray(parsed.claims) ? parsed.claims.filter(isClaim) : [],

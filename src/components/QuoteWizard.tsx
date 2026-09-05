@@ -46,7 +46,7 @@ export function QuoteWizard({ product }: { product: Product }) {
     [applicant, coverageIds, excess, existingPolicies, product.id, riskAnswers, sumInsured],
   )
 
-  const livePremium = useMemo(() => ratePremium(input), [input])
+  const livePremium = useMemo(() => ratePremium(input, new Date(), state.settings), [input, state.settings])
   const quote = state.quotes.find((candidate) => candidate.id === quoteId)
   const policy = quote
     ? state.policies.find((candidate) => candidate.quoteReference === quote.reference)

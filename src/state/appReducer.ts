@@ -1,6 +1,7 @@
 import { advanceClaim, createClaim, type ClaimInput } from '../domain/claims'
 import { cancelPolicy, issuePolicy, renewPolicy } from '../domain/policies'
 import { createQuote } from '../domain/rating'
+import { defaultSettings, type PlatformSettings } from '../domain/settings'
 import type { ClaimStatus, QuoteInput } from '../domain/types'
 import type { AppState } from './storage'
 
@@ -11,6 +12,8 @@ export type AppAction =
   | { type: 'policy/renewed'; policyId: string; now: string }
   | { type: 'claim/created'; id: string; input: ClaimInput; now: string }
   | { type: 'claim/advanced'; claimId: string; status: ClaimStatus; note: string; now: string }
+  | { type: 'settings/updated'; settings: PlatformSettings }
+  | { type: 'settings/reset' }
   | { type: 'state/reset' }
 
 /**
@@ -25,6 +28,7 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         id: action.id,
         sequence,
         now: new Date(action.now),
+        settings: state.settings,
       })
       return {
         ...state,
@@ -94,8 +98,20 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         ),
       }
     }
+    case 'settings/updated': {
+      return { ...state, settings: action.settings }
+    }
+    case 'settings/reset': {
+      return { ...state, settings: defaultSettings }
+    }
     case 'state/reset': {
-      return { quotes: [], policies: [], claims: [], sequences: { quote: 0, policy: 0, claim: 0 } }
+      return {
+        settings: state.settings,
+        quotes: [],
+        policies: [],
+        claims: [],
+        sequences: { quote: 0, policy: 0, claim: 0 },
+      }
     }
     default:
       return state

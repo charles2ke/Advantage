@@ -95,6 +95,27 @@ test.describe('Advantage insurance platform', () => {
     await page.screenshot({ path: 'docs/screenshots/06-claim-settled.png', fullPage: true })
   })
 
+  test('the admin portal sets the platform up', async ({ page }) => {
+    await page.goto('/#/admin')
+
+    await expect(page.getByRole('heading', { name: 'Admin portal' })).toBeVisible()
+    await page.getByLabel('Platform name').fill('Northwind Cover')
+    await page.getByLabel('Insurance premium tax (%)').fill('20')
+    await page.getByRole('checkbox', { name: /Travel insurance/ }).uncheck()
+    await page.getByRole('button', { name: 'Save settings' }).click()
+
+    await expect(page.getByRole('status')).toContainText('Settings saved')
+    await expect(page.locator('.site-header')).toContainText('Northwind Cover')
+    await page.screenshot({ path: 'docs/screenshots/07-admin.png', fullPage: true })
+
+    await page.goto('/#/quote')
+    await expect(page.getByRole('heading', { name: 'Motor insurance' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Travel insurance' })).toHaveCount(0)
+
+    await page.goto('/#/quote/travel')
+    await expect(page.getByRole('alert')).toContainText('is not on sale at the moment')
+  })
+
   test('cover survives a page reload', async ({ page }) => {
     await buyMotorPolicy(page)
 

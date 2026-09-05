@@ -405,6 +405,11 @@ legend {
   color: var(--muted);
 }
 
+.checkbox-option__text strong {
+  display: block;
+  color: var(--ink);
+}
+
 .steps {
   display: flex;
   gap: 0.5rem;

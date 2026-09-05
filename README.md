@@ -24,6 +24,9 @@ claim against it.
 - **Claims** — claims are validated against the policy (cover period, sum insured), given a
   reference and tracked through submitted → in review → approved/declined → settled, with the
   settlement calculated net of the policy excess (`src/domain/claims.ts`).
+- **Admin portal** — a setup area at `#/admin` where the platform is named, products are put on or
+  taken off sale, the pricing rules (tax, instalment loading, loyalty discount, quote validity) are
+  tuned and the stored data can be cleared (`src/pages/AdminPage.tsx`, `src/domain/settings.ts`).
 - **Persistence** — quotes, policies and claims are stored in the browser's local storage, so the
   platform runs as a static site with no backend (`src/state/storage.ts`).
 
@@ -52,10 +55,10 @@ Playwright needs its browser once per machine: `npx playwright install --with-de
 ## Project structure
 
 ```
-src/domain      pure business logic: catalogue, rating, policies, claims, formatting
+src/domain      pure business logic: catalogue, rating, policies, claims, settings, formatting
 src/state       reducer, React context provider and local storage persistence
 src/components  reusable UI: quote wizard, premium summary, product card, status badge
-src/pages       home, quote, policies and claims pages
+src/pages       home, quote, policies, claims and admin pages
 src/router.ts   minimal hash router so the app deploys as static files
 tests           Vitest unit and component tests
 e2e             Playwright end to end tests (screenshots are written to docs/screenshots)
@@ -72,6 +75,9 @@ e2e             Playwright end to end tests (screenshots are written to docs/scr
 6. **Minimum premium, tax and instalments** — the net premium never falls below the product
    minimum, insurance premium tax of 12% is added, and paying monthly carries a 5% loading.
 
+The tax rate, instalment loading, loyalty discount and quote validity are defaults that an
+administrator can change in the admin portal; new quotes are rated with the saved settings.
+
 ## Screenshots
 
 | Journey | Screenshot |
@@ -81,6 +87,7 @@ e2e             Playwright end to end tests (screenshots are written to docs/scr
 | Policies | [04-policies.png](docs/screenshots/04-policies.png) |
 | Claim submitted | [05-claim-submitted.png](docs/screenshots/05-claim-submitted.png) |
 | Claim settled | [06-claim-settled.png](docs/screenshots/06-claim-settled.png) |
+| Admin portal | [07-admin.png](docs/screenshots/07-admin.png) |
 
 Advantage is a demonstration platform: no real insurance cover is provided and all data stays in
 your browser.
