@@ -1,6 +1,6 @@
 import {
   defaultSettings,
-  isRate as isValidRate,
+  isRate,
   MAX_QUOTE_VALIDITY_DAYS,
   MIN_QUOTE_VALIDITY_DAYS,
   type PlatformSettings,
@@ -60,8 +60,8 @@ function coerceSupportEmail(value: unknown): string {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : defaultSettings.supportEmail
 }
 
-function isRate(value: unknown): value is number {
-  return isFiniteNumber(value) && isValidRate(value)
+function isRateValue(value: unknown): value is number {
+  return isFiniteNumber(value) && isRate(value)
 }
 
 function isQuoteValidityDays(value: unknown): value is number {
@@ -216,14 +216,14 @@ export function coerceSettings(value: unknown): PlatformSettings {
       ? value.brandName
       : defaultSettings.brandName,
     supportEmail: coerceSupportEmail(value.supportEmail),
-    taxRate: isRate(value.taxRate) ? value.taxRate : defaultSettings.taxRate,
-    monthlyLoading: isRate(value.monthlyLoading)
+    taxRate: isRateValue(value.taxRate) ? value.taxRate : defaultSettings.taxRate,
+    monthlyLoading: isRateValue(value.monthlyLoading)
       ? value.monthlyLoading
       : defaultSettings.monthlyLoading,
-    loyaltyDiscountPerPolicy: isRate(value.loyaltyDiscountPerPolicy)
+    loyaltyDiscountPerPolicy: isRateValue(value.loyaltyDiscountPerPolicy)
       ? value.loyaltyDiscountPerPolicy
       : defaultSettings.loyaltyDiscountPerPolicy,
-    maxLoyaltyDiscount: isRate(value.maxLoyaltyDiscount)
+    maxLoyaltyDiscount: isRateValue(value.maxLoyaltyDiscount)
       ? value.maxLoyaltyDiscount
       : defaultSettings.maxLoyaltyDiscount,
     quoteValidityDays: isQuoteValidityDays(value.quoteValidityDays)
