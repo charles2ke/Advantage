@@ -70,13 +70,13 @@ export function AdminPage() {
 
   return (
     <div className="page">
-      <section className="page__header">
+      <div className="page__header">
         <h1>Admin portal</h1>
         <p>
           Set the platform up: name it, choose the products you sell and tune the pricing rules that
           every quote is rated with.
         </p>
-      </section>
+      </div>
 
       <section className="section">
         <h2>Platform at a glance</h2>

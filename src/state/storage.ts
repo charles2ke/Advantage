@@ -51,8 +51,12 @@ function isFiniteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value)
 }
 
-function isSupportEmail(value: unknown): value is string {
-  return isString(value) && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
+function coerceSupportEmail(value: unknown): string {
+  if (!isString(value)) {
+    return defaultSettings.supportEmail
+  }
+  const email = value.trim()
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : defaultSettings.supportEmail
 }
 
 function isRate(value: unknown): value is number {
@@ -210,7 +214,7 @@ export function coerceSettings(value: unknown): PlatformSettings {
     brandName: isString(value.brandName) && value.brandName.trim()
       ? value.brandName
       : defaultSettings.brandName,
-    supportEmail: isSupportEmail(value.supportEmail) ? value.supportEmail : defaultSettings.supportEmail,
+    supportEmail: coerceSupportEmail(value.supportEmail),
     taxRate: isRate(value.taxRate) ? value.taxRate : defaultSettings.taxRate,
     monthlyLoading: isRate(value.monthlyLoading)
       ? value.monthlyLoading

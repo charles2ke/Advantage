@@ -171,9 +171,16 @@ describe('coerceSettings', () => {
   })
 
   it('keeps valid stored values', () => {
-    expect(coerceSettings({ brandName: 'Acme', enabledProducts: ['home', 'nope'] })).toEqual({
+    expect(
+      coerceSettings({
+        brandName: 'Acme',
+        supportEmail: ' support@acme.example ',
+        enabledProducts: ['home', 'nope'],
+      }),
+    ).toEqual({
       ...defaultSettings,
       brandName: 'Acme',
+      supportEmail: 'support@acme.example',
       enabledProducts: ['home'],
     })
   })
