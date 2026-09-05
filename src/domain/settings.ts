@@ -40,7 +40,7 @@ export const MAX_RATE = 0.5
 export const MIN_QUOTE_VALIDITY_DAYS = 1
 export const MAX_QUOTE_VALIDITY_DAYS = 365
 
-function isRate(value: number): boolean {
+export function isRate(value: number): boolean {
   return Number.isFinite(value) && value >= 0 && value <= MAX_RATE
 }
 
@@ -74,7 +74,9 @@ export function validateSettings(settings: PlatformSettings): string[] {
     settings.quoteValidityDays < MIN_QUOTE_VALIDITY_DAYS ||
     settings.quoteValidityDays > MAX_QUOTE_VALIDITY_DAYS
   ) {
-    errors.push(`Quote validity must be a whole number of days between 1 and ${MAX_QUOTE_VALIDITY_DAYS}.`)
+    errors.push(
+      `Quote validity must be a whole number of days between ${MIN_QUOTE_VALIDITY_DAYS} and ${MAX_QUOTE_VALIDITY_DAYS}.`,
+    )
   }
   if (settings.enabledProducts.length === 0) {
     errors.push('At least one product must be available to customers.')

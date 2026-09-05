@@ -1,7 +1,7 @@
 import {
   defaultSettings,
+  isRate as isValidRate,
   MAX_QUOTE_VALIDITY_DAYS,
-  MAX_RATE,
   MIN_QUOTE_VALIDITY_DAYS,
   type PlatformSettings,
 } from '../domain/settings'
@@ -61,7 +61,7 @@ function coerceSupportEmail(value: unknown): string {
 }
 
 function isRate(value: unknown): value is number {
-  return isFiniteNumber(value) && value >= 0 && value <= MAX_RATE
+  return isFiniteNumber(value) && isValidRate(value)
 }
 
 function isQuoteValidityDays(value: unknown): value is number {
