@@ -37,6 +37,7 @@ export const defaultSettings: PlatformSettings = {
 }
 
 export const MAX_RATE = 0.5
+export const MIN_QUOTE_VALIDITY_DAYS = 1
 export const MAX_QUOTE_VALIDITY_DAYS = 365
 
 function isRate(value: number): boolean {
@@ -70,7 +71,7 @@ export function validateSettings(settings: PlatformSettings): string[] {
   }
   if (
     !Number.isInteger(settings.quoteValidityDays) ||
-    settings.quoteValidityDays < 1 ||
+    settings.quoteValidityDays < MIN_QUOTE_VALIDITY_DAYS ||
     settings.quoteValidityDays > MAX_QUOTE_VALIDITY_DAYS
   ) {
     errors.push(`Quote validity must be a whole number of days between 1 and ${MAX_QUOTE_VALIDITY_DAYS}.`)

@@ -69,14 +69,14 @@ export function AdminPage() {
   const annualPremium = state.policies.reduce((total, policy) => total + policy.premium.total, 0)
 
   return (
-    <div className="page">
-      <div className="page__header">
-        <h1>Admin portal</h1>
+    <section className="page">
+      <header className="page__header" role="group" aria-labelledby="admin-page-title">
+        <h1 id="admin-page-title">Admin portal</h1>
         <p>
           Set the platform up: name it, choose the products you sell and tune the pricing rules that
           every quote is rated with.
         </p>
-      </div>
+      </header>
 
       <section className="section">
         <h2>Platform at a glance</h2>
@@ -283,6 +283,6 @@ export function AdminPage() {
           </div>
         </div>
       </section>
-    </div>
+    </section>
   )
 }

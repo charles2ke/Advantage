@@ -2,6 +2,7 @@ import {
   defaultSettings,
   MAX_QUOTE_VALIDITY_DAYS,
   MAX_RATE,
+  MIN_QUOTE_VALIDITY_DAYS,
   type PlatformSettings,
 } from '../domain/settings'
 import type {
@@ -67,7 +68,7 @@ function isQuoteValidityDays(value: unknown): value is number {
   return (
     isFiniteNumber(value) &&
     Number.isInteger(value) &&
-    value >= 1 &&
+    value >= MIN_QUOTE_VALIDITY_DAYS &&
     value <= MAX_QUOTE_VALIDITY_DAYS
   )
 }
