@@ -1,4 +1,9 @@
-import { defaultSettings, type PlatformSettings } from '../domain/settings'
+import {
+  defaultSettings,
+  MAX_QUOTE_VALIDITY_DAYS,
+  MAX_RATE,
+  type PlatformSettings,
+} from '../domain/settings'
 import type {
   Applicant,
   Claim,
@@ -44,6 +49,23 @@ function isString(value: unknown): value is string {
 
 function isFiniteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value)
+}
+
+function isSupportEmail(value: unknown): value is string {
+  return isString(value) && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
+}
+
+function isRate(value: unknown): value is number {
+  return isFiniteNumber(value) && value >= 0 && value <= MAX_RATE
+}
+
+function isQuoteValidityDays(value: unknown): value is number {
+  return (
+    isFiniteNumber(value) &&
+    Number.isInteger(value) &&
+    value >= 1 &&
+    value <= MAX_QUOTE_VALIDITY_DAYS
+  )
 }
 
 function isStringArray(value: unknown): value is string[] {
@@ -188,18 +210,18 @@ export function coerceSettings(value: unknown): PlatformSettings {
     brandName: isString(value.brandName) && value.brandName.trim()
       ? value.brandName
       : defaultSettings.brandName,
-    supportEmail: isString(value.supportEmail) ? value.supportEmail : defaultSettings.supportEmail,
-    taxRate: isFiniteNumber(value.taxRate) ? value.taxRate : defaultSettings.taxRate,
-    monthlyLoading: isFiniteNumber(value.monthlyLoading)
+    supportEmail: isSupportEmail(value.supportEmail) ? value.supportEmail : defaultSettings.supportEmail,
+    taxRate: isRate(value.taxRate) ? value.taxRate : defaultSettings.taxRate,
+    monthlyLoading: isRate(value.monthlyLoading)
       ? value.monthlyLoading
       : defaultSettings.monthlyLoading,
-    loyaltyDiscountPerPolicy: isFiniteNumber(value.loyaltyDiscountPerPolicy)
+    loyaltyDiscountPerPolicy: isRate(value.loyaltyDiscountPerPolicy)
       ? value.loyaltyDiscountPerPolicy
       : defaultSettings.loyaltyDiscountPerPolicy,
-    maxLoyaltyDiscount: isFiniteNumber(value.maxLoyaltyDiscount)
+    maxLoyaltyDiscount: isRate(value.maxLoyaltyDiscount)
       ? value.maxLoyaltyDiscount
       : defaultSettings.maxLoyaltyDiscount,
-    quoteValidityDays: isFiniteNumber(value.quoteValidityDays)
+    quoteValidityDays: isQuoteValidityDays(value.quoteValidityDays)
       ? value.quoteValidityDays
       : defaultSettings.quoteValidityDays,
     enabledProducts: enabled.length > 0 ? enabled : defaultSettings.enabledProducts,

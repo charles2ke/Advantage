@@ -157,6 +157,19 @@ describe('coerceSettings', () => {
     )
   })
 
+  it('falls back for invalid persisted email, rates, and quote validity', () => {
+    expect(
+      coerceSettings({
+        supportEmail: 'not an email',
+        taxRate: 0.51,
+        monthlyLoading: -0.01,
+        loyaltyDiscountPerPolicy: 0.6,
+        maxLoyaltyDiscount: Number.NaN,
+        quoteValidityDays: 1.5,
+      }),
+    ).toEqual(defaultSettings)
+  })
+
   it('keeps valid stored values', () => {
     expect(coerceSettings({ brandName: 'Acme', enabledProducts: ['home', 'nope'] })).toEqual({
       ...defaultSettings,

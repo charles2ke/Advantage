@@ -110,7 +110,7 @@ describe('Advantage platform', () => {
     await user.click(screen.getByRole('button', { name: /save settings/i }))
 
     expect(screen.getByRole('status')).toHaveTextContent(/settings saved/i)
-    expect(screen.getAllByRole('banner')[0]).toHaveTextContent('Northwind Cover')
+    expect(screen.getByRole('banner')).toHaveTextContent('Northwind Cover')
 
     await user.click(screen.getByRole('link', { name: /home/i }))
     expect(screen.queryByRole('heading', { name: 'Travel insurance' })).not.toBeInTheDocument()
