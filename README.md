@@ -6,6 +6,8 @@ Advantage is a generic insurance platform that covers the full customer journey 
 application: browse the product catalogue, get an instant quote, buy the policy, manage it and
 claim against it.
 
+**Live site:** <https://charles2ke.github.io/Advantage/>
+
 ![Advantage homepage](docs/screenshots/01-home.png)
 
 ## Features
@@ -51,6 +53,20 @@ The app is served on <http://localhost:5173>.
 | `npm run test:e2e` | Run the Playwright end to end tests (builds and previews the app) |
 
 Playwright needs its browser once per machine: `npx playwright install --with-deps chromium`.
+
+## Deployment
+
+The app is a static site (hash routing, browser local storage) and is published to GitHub Pages by
+the `.github/workflows/deploy.yml` workflow on every push to `main`. To enable it, set
+**Settings → Pages → Build and deployment → Source** to **GitHub Actions**.
+
+The workflow builds with `BASE_PATH=/<repository name>/` so the assets resolve under the project
+page URL. Locally `npm run build` defaults to a base of `/`; set `BASE_PATH` yourself to reproduce
+the deployed build:
+
+```bash
+BASE_PATH=/Advantage/ npm run build && npm run preview
+```
 
 ## Project structure
 
