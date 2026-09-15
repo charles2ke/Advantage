@@ -1,5 +1,17 @@
+import { isSupportedBaseUrl } from '../integrations/http'
+import { integrationCatalog, type IntegrationId } from '../integrations/catalog'
 import { products } from './catalog'
 import type { ProductId } from './types'
+
+/** Administrator owned configuration for one external service. */
+export interface IntegrationSetting {
+  /** Whether the platform calls the service at all. */
+  enabled: boolean
+  /** Endpoint the service is called on, so it can be pointed at a proxy. */
+  baseUrl: string
+}
+
+export type IntegrationSettings = Record<IntegrationId, IntegrationSetting>
 
 /**
  * Platform wide configuration owned by the administrator. The values below are
@@ -23,7 +35,16 @@ export interface PlatformSettings {
   quoteValidityDays: number
   /** Products customers can quote and buy. */
   enabledProducts: ProductId[]
+  /** External services the platform talks to, keyed by integration id. */
+  integrations: IntegrationSettings
 }
+
+export const defaultIntegrationSettings: IntegrationSettings = Object.fromEntries(
+  integrationCatalog.map((integration) => [
+    integration.id,
+    { enabled: true, baseUrl: integration.defaultBaseUrl },
+  ]),
+) as IntegrationSettings
 
 export const defaultSettings: PlatformSettings = {
   brandName: 'Advantage',
@@ -34,6 +55,7 @@ export const defaultSettings: PlatformSettings = {
   maxLoyaltyDiscount: 0.15,
   quoteValidityDays: 30,
   enabledProducts: products.map((product) => product.id),
+  integrations: defaultIntegrationSettings,
 }
 
 export const MAX_RATE = 0.5
@@ -81,8 +103,36 @@ export function validateSettings(settings: PlatformSettings): string[] {
   if (settings.enabledProducts.length === 0) {
     errors.push('At least one product must be available to customers.')
   }
+  for (const integration of integrationCatalog) {
+    const config = settings.integrations[integration.id]
+    if (!config) {
+      errors.push(`The ${integration.name} integration is not configured.`)
+      continue
+    }
+    if (!isSupportedBaseUrl(config.baseUrl)) {
+      errors.push(
+        `The ${integration.name} endpoint must be an https address, for example ${integration.defaultBaseUrl}.`,
+      )
+    }
+  }
 
   return errors
+}
+
+export function isIntegrationEnabled(
+  settings: PlatformSettings,
+  id: IntegrationId,
+): boolean {
+  return settings.integrations[id]?.enabled === true
+}
+
+/** Endpoint to call an integration on, falling back to the shipped default. */
+export function integrationBaseUrl(settings: PlatformSettings, id: IntegrationId): string {
+  const configured = settings.integrations[id]?.baseUrl
+  if (configured && isSupportedBaseUrl(configured)) {
+    return configured
+  }
+  return integrationCatalog.find((integration) => integration.id === id)?.defaultBaseUrl ?? ''
 }
 
 export function isProductEnabled(settings: PlatformSettings, productId: ProductId): boolean {

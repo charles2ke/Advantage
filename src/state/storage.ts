@@ -1,8 +1,11 @@
+import { integrationCatalog } from '../integrations/catalog'
+import { isSupportedBaseUrl } from '../integrations/http'
 import {
   defaultSettings,
   isRate,
   MAX_QUOTE_VALIDITY_DAYS,
   MIN_QUOTE_VALIDITY_DAYS,
+  type IntegrationSettings,
   type PlatformSettings,
 } from '../domain/settings'
 import type {
@@ -230,7 +233,32 @@ export function coerceSettings(value: unknown): PlatformSettings {
       ? value.quoteValidityDays
       : defaultSettings.quoteValidityDays,
     enabledProducts: enabled.length > 0 ? enabled : defaultSettings.enabledProducts,
+    integrations: coerceIntegrations(value.integrations),
   }
+}
+
+/** Reads integration configuration, falling back per integration to the defaults. */
+function coerceIntegrations(value: unknown): IntegrationSettings {
+  const stored = isRecord(value) ? value : {}
+  const entries = integrationCatalog.map((integration) => {
+    const fallback = defaultSettings.integrations[integration.id]
+    const config = stored[integration.id]
+    if (!isRecord(config)) {
+      return [integration.id, fallback] as const
+    }
+    const baseUrl =
+      isString(config.baseUrl) && isSupportedBaseUrl(config.baseUrl)
+        ? config.baseUrl
+        : fallback.baseUrl
+    return [
+      integration.id,
+      {
+        enabled: typeof config.enabled === 'boolean' ? config.enabled : fallback.enabled,
+        baseUrl,
+      },
+    ] as const
+  })
+  return Object.fromEntries(entries) as IntegrationSettings
 }
 
 function coerceSequence(value: unknown): number {

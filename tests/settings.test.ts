@@ -4,6 +4,8 @@ import { createQuote, ratePremium } from '../src/domain/rating'
 import {
   availableProducts,
   defaultSettings,
+  integrationBaseUrl,
+  isIntegrationEnabled,
   isProductEnabled,
   validateSettings,
   type PlatformSettings,
@@ -182,6 +184,55 @@ describe('coerceSettings', () => {
       brandName: 'Acme',
       supportEmail: 'support@acme.example',
       enabledProducts: ['home'],
+    })
+  })
+})
+
+describe('integration settings', () => {
+  it('enables every catalogued integration by default', () => {
+    expect(isIntegrationEnabled(defaultSettings, 'addressLookup')).toBe(true)
+    expect(integrationBaseUrl(defaultSettings, 'exchangeRates')).toBe(
+      'https://api.frankfurter.app',
+    )
+  })
+
+  it('rejects an endpoint that is not a secure url', () => {
+    const settings: PlatformSettings = {
+      ...defaultSettings,
+      integrations: {
+        ...defaultSettings.integrations,
+        addressLookup: { enabled: true, baseUrl: 'http://insecure.example' },
+      },
+    }
+
+    expect(validateSettings(settings)).toEqual([
+      'The Address lookup endpoint must be an https address, for example https://api.postcodes.io.',
+    ])
+  })
+
+  it('falls back to the shipped endpoint when the stored one is unusable', () => {
+    const settings: PlatformSettings = {
+      ...defaultSettings,
+      integrations: {
+        ...defaultSettings.integrations,
+        addressLookup: { enabled: true, baseUrl: 'nonsense' },
+      },
+    }
+
+    expect(integrationBaseUrl(settings, 'addressLookup')).toBe('https://api.postcodes.io')
+  })
+
+  it('coerces persisted integration settings', () => {
+    expect(
+      coerceSettings({
+        integrations: {
+          addressLookup: { enabled: false, baseUrl: 'http://evil.example' },
+          exchangeRates: 'nonsense',
+        },
+      }).integrations,
+    ).toEqual({
+      addressLookup: { enabled: false, baseUrl: 'https://api.postcodes.io' },
+      exchangeRates: { enabled: true, baseUrl: 'https://api.frankfurter.app' },
     })
   })
 })

@@ -4,6 +4,8 @@ import { ratePremium, validateApplicant, validateQuoteInput } from '../domain/ra
 import type { Applicant, Product, QuoteInput } from '../domain/types'
 import { navigate } from '../router'
 import { newId, useApp } from '../state/AppContext'
+import { AddressLookupField } from './AddressLookupField'
+import { CurrencyConverter } from './CurrencyConverter'
 import { PremiumSummary } from './PremiumSummary'
 
 const stepTitles = ['Your details', 'Your cover', 'Your quote']
@@ -154,16 +156,10 @@ export function QuoteWizard({ product }: { product: Product }) {
                 />
                 <span className="field__help">You must be 18 or over to hold a policy.</span>
               </div>
-              <div className="field">
-                <label htmlFor="postcode">Postcode</label>
-                <input
-                  id="postcode"
-                  type="text"
-                  autoComplete="postal-code"
-                  value={applicant.postcode}
-                  onChange={(event) => updateApplicant({ postcode: event.target.value })}
-                />
-              </div>
+              <AddressLookupField
+                value={applicant.postcode}
+                onChange={(postcode) => updateApplicant({ postcode })}
+              />
               <div className="button-row">
                 <button type="button" className="button" onClick={goToCover}>
                   Continue to cover
@@ -272,6 +268,7 @@ export function QuoteWizard({ product }: { product: Product }) {
                 Reference {quote.reference} · valid until {formatDate(quote.expiresAt)}
               </p>
               <PremiumSummary premium={quote.premium} />
+              <CurrencyConverter amount={quote.premium.total} />
               {policy ? (
                 <div className="alert alert--success" role="status">
                   <strong>Policy {policy.policyNumber} is now active.</strong>

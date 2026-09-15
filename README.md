@@ -29,6 +29,9 @@ claim against it.
 - **Admin portal** — a setup area at `#/admin` where the platform is named, products are put on or
   taken off sale, the pricing rules (tax, instalment loading, loyalty discount, quote validity) are
   tuned and the stored data can be cleared (`src/pages/AdminPage.tsx`, `src/domain/settings.ts`).
+- **Real world integrations** — the platform calls live public services from the browser: postcodes
+  are verified against postcodes.io and quote prices can be shown in another currency using the
+  European Central Bank reference rates published by Frankfurter (`src/integrations/`).
 - **Persistence** — quotes, policies and claims are stored in the browser's local storage, so the
   platform runs as a static site with no backend (`src/state/storage.ts`).
 
@@ -72,6 +75,7 @@ BASE_PATH=/Advantage/ npm run build && npm run preview
 
 ```
 src/domain      pure business logic: catalogue, rating, policies, claims, settings, formatting
+src/integrations clients for the external services the platform calls
 src/state       reducer, React context provider and local storage persistence
 src/components  reusable UI: quote wizard, premium summary, product card, status badge
 src/pages       home, quote, policies, claims and admin pages
@@ -79,6 +83,29 @@ src/router.ts   minimal hash router so the app deploys as static files
 tests           Vitest unit and component tests
 e2e             Playwright end to end tests (screenshots are written to docs/screenshots)
 ```
+
+## Integrations
+
+Advantage talks to real, keyless public APIs so the platform works end to end as a static site with
+no backend and no secrets to manage.
+
+| Integration | Service | Used for |
+| --- | --- | --- |
+| Address lookup | [postcodes.io](https://postcodes.io/docs) (Ordnance Survey and ONS open data) | Verifying the postcode in the quote wizard and showing its district and region |
+| Exchange rates | [Frankfurter](https://www.frankfurter.app/docs) (European Central Bank reference rates) | Showing the price of a quote in another currency |
+
+Each integration lives in `src/integrations` behind a small contract: the client takes the request
+and an optional endpoint, timeout, abort signal and `fetch` implementation, and always resolves to
+`{ ok: true, data }` or `{ ok: false, error }`. Network errors, timeouts, error statuses and
+unexpected payloads are turned into a readable message, so an outage never blocks a quote, and the
+tests stub `fetch` instead of touching the network.
+
+Administrators manage them under **Integrations** in the admin portal: each one can be turned off,
+pointed at another https endpoint (for example a proxy of your own) and tested with a live
+connection check. The configuration is validated and persisted with the rest of the settings.
+
+Adding another integration means adding its client under `src/integrations` and registering it in
+`src/integrations/catalog.ts`; the settings, persistence and admin portal pick it up from there.
 
 ## How the premium is calculated
 
