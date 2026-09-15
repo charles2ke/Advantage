@@ -131,6 +131,8 @@ administrator can change in the admin portal; new quotes are rated with the save
 | Claim submitted | [05-claim-submitted.png](docs/screenshots/05-claim-submitted.png) |
 | Claim settled | [06-claim-settled.png](docs/screenshots/06-claim-settled.png) |
 | Admin portal | [07-admin.png](docs/screenshots/07-admin.png) |
+| Quote with a converted price | [08-integrations.png](docs/screenshots/08-integrations.png) |
+| Integrations in the admin portal | [09-admin-integrations.png](docs/screenshots/09-admin-integrations.png) |
 
 Advantage is a demonstration platform: no real insurance cover is provided and all data stays in
 your browser.
