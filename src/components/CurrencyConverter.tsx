@@ -46,6 +46,7 @@ export function CurrencyConverter({ amount }: { amount: number }) {
       <select
         id="quote-currency"
         value={currency}
+        disabled={busy}
         onChange={(event) => {
           setCurrency(event.target.value)
           setRate(null)

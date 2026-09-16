@@ -52,6 +52,10 @@ export async function getJson<T>(request: JsonRequest): Promise<IntegrationResul
     return failure(`${request.serviceName} is unavailable in this environment.`)
   }
 
+  if (request.signal?.aborted) {
+    return failure(`The ${request.serviceName} request was cancelled.`)
+  }
+
   const controller = new AbortController()
   const timeoutMs = request.timeoutMs ?? DEFAULT_TIMEOUT_MS
   const timer = setTimeout(() => controller.abort(), timeoutMs)
@@ -70,8 +74,12 @@ export async function getJson<T>(request: JsonRequest): Promise<IntegrationResul
       return failure(mapped ?? `${request.serviceName} answered with status ${response.status}.`)
     }
 
-    const payload: unknown = await response.json()
-    return ok(payload as T)
+    try {
+      const payload: unknown = await response.json()
+      return ok(payload as T)
+    } catch {
+      return failure(`${request.serviceName} returned a response that could not be understood.`)
+    }
   } catch (error) {
     if (request.signal?.aborted) {
       return failure(`The ${request.serviceName} request was cancelled.`)

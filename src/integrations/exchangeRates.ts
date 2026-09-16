@@ -80,9 +80,18 @@ export async function fetchExchangeRate(
   })
 }
 
-/** Converts an amount with a rate, rounded to the minor unit. */
+/** Number of decimal places a currency's minor unit uses, e.g. 0 for JPY, 2 for GBP. */
+function minorUnitDigits(currency: string): number {
+  return (
+    new Intl.NumberFormat('en-GB', { style: 'currency', currency }).resolvedOptions()
+      .maximumFractionDigits ?? 2
+  )
+}
+
+/** Converts an amount with a rate, rounded to the target currency's minor unit. */
 export function convert(amount: number, rate: ExchangeRate): number {
-  return Math.round(amount * rate.rate * 100) / 100
+  const factor = 10 ** minorUnitDigits(rate.target)
+  return Math.round(amount * rate.rate * factor) / factor
 }
 
 /** Formats a converted amount in the target currency. */
