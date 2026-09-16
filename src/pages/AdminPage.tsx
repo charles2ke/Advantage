@@ -4,8 +4,10 @@ import { formatCurrency } from '../domain/format'
 import {
   defaultSettings,
   validateSettings,
+  type IntegrationSetting,
   type PlatformSettings,
 } from '../domain/settings'
+import { integrationCatalog, type IntegrationId } from '../integrations/catalog'
 import type { ProductId } from '../domain/types'
 import { useApp } from '../state/AppContext'
 
@@ -24,6 +26,8 @@ export function AdminPage() {
   const [errors, setErrors] = useState<string[]>([])
   const [saved, setSaved] = useState(false)
   const [confirmingReset, setConfirmingReset] = useState(false)
+  const [checking, setChecking] = useState<IntegrationId | null>(null)
+  const [checks, setChecks] = useState<Record<string, { ok: boolean; message: string }>>({})
 
   function update(patch: Partial<PlatformSettings>) {
     setDraft((current) => ({ ...current, ...patch }))
@@ -36,6 +40,35 @@ export function AdminPage() {
         ? draft.enabledProducts.filter((id) => id !== productId)
         : [...draft.enabledProducts, productId],
     })
+  }
+
+  function updateIntegration(id: IntegrationId, patch: Partial<IntegrationSetting>) {
+    update({
+      integrations: {
+        ...draft.integrations,
+        [id]: { ...draft.integrations[id], ...patch },
+      },
+    })
+    setChecks((current) => {
+      const { [id]: _removed, ...rest } = current
+      return rest
+    })
+  }
+
+  async function testIntegration(id: IntegrationId) {
+    const integration = integrationCatalog.find((candidate) => candidate.id === id)
+    if (!integration) {
+      return
+    }
+    setChecking(id)
+    const result = await integration.check({ baseUrl: draft.integrations[id].baseUrl })
+    setChecks((current) => ({
+      ...current,
+      [id]: result.ok
+        ? { ok: true, message: result.data }
+        : { ok: false, message: result.error },
+    }))
+    setChecking(null)
   }
 
   function save() {
@@ -246,6 +279,83 @@ export function AdminPage() {
             Restore defaults
           </button>
           <span className="field__help">Restoring the defaults saves them straight away.</span>
+        </div>
+      </section>
+
+      <section className="section">
+        <h2>Integrations</h2>
+        <p className="field__help">
+          Advantage calls these public services live from the browser. Turn one off to run the
+          platform without it, or point it at your own endpoint or proxy.
+        </p>
+        <div className="grid grid--two">
+          {integrationCatalog.map((integration) => {
+            const config = draft.integrations[integration.id]
+            const check = checks[integration.id]
+            return (
+              <section className="card" key={integration.id}>
+                <h3>{integration.name}</h3>
+                <p className="field__help">{integration.description}</p>
+                <p className="field__help">
+                  Data from {integration.provider} —{' '}
+                  <a href={integration.docsUrl} target="_blank" rel="noreferrer noopener">
+                    API documentation
+                  </a>
+                </p>
+                <label className="checkbox-option">
+                  <input
+                    type="checkbox"
+                    checked={config.enabled}
+                    onChange={() => updateIntegration(integration.id, { enabled: !config.enabled })}
+                  />
+                  <span className="checkbox-option__text">
+                    <strong>Enabled</strong>
+                  </span>
+                </label>
+                <div className="field">
+                  <label htmlFor={`integration-${integration.id}`}>Endpoint</label>
+                  <input
+                    id={`integration-${integration.id}`}
+                    type="url"
+                    value={config.baseUrl}
+                    onChange={(event) =>
+                      updateIntegration(integration.id, { baseUrl: event.target.value })
+                    }
+                  />
+                  <span className="field__help">
+                    Default: {integration.defaultBaseUrl}
+                  </span>
+                </div>
+                <div className="button-row">
+                  <button
+                    type="button"
+                    className="button button--secondary"
+                    disabled={checking === integration.id}
+                    onClick={() => {
+                      void testIntegration(integration.id)
+                    }}
+                  >
+                    {checking === integration.id ? 'Testing…' : 'Test connection'}
+                  </button>
+                </div>
+                {check && (
+                  <p
+                    className="field__help"
+                    role="status"
+                    data-testid={`check-${integration.id}`}
+                  >
+                    {check.ok ? 'Connected. ' : 'Not connected. '}
+                    {check.message}
+                  </p>
+                )}
+              </section>
+            )
+          })}
+        </div>
+        <div className="button-row">
+          <button type="button" className="button" onClick={save}>
+            Save integrations
+          </button>
         </div>
       </section>
 

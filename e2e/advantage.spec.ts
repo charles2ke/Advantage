@@ -116,6 +116,50 @@ test.describe('Advantage insurance platform', () => {
     await expect(page.getByRole('alert')).toContainText('is not on sale at the moment')
   })
 
+  test('integrations verify the postcode and convert the price', async ({ page }) => {
+    // The external services are stubbed so the journey is deterministic offline.
+    await page.route('**/api.postcodes.io/postcodes/**', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          result: {
+            postcode: 'SW1A 2AA',
+            country: 'England',
+            region: 'London',
+            admin_district: 'Westminster',
+            latitude: 51.50354,
+            longitude: -0.127695,
+          },
+        }),
+      }),
+    )
+    await page.route('**/api.frankfurter.app/latest**', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ base: 'GBP', date: '2026-09-14', rates: { EUR: 1.2 } }),
+      }),
+    )
+
+    await page.goto('/#/quote/auto')
+    await page.getByLabel('Postcode').fill('sw1a 2aa')
+    await page.getByRole('button', { name: 'Check postcode' }).click()
+    await expect(page.getByTestId('address-result')).toContainText('Westminster')
+    await expect(page.getByLabel('Postcode')).toHaveValue('SW1A 2AA')
+
+    await buyMotorPolicy(page)
+    await page.getByLabel('Show this price in another currency').selectOption('EUR')
+    await page.getByRole('button', { name: 'Convert' }).click()
+    await expect(page.getByTestId('converted-premium')).toContainText('European Central Bank')
+    await page.screenshot({ path: 'docs/screenshots/08-integrations.png', fullPage: true })
+
+    await page.goto('/#/admin')
+    await page.getByRole('button', { name: 'Test connection' }).first().click()
+    await expect(page.getByTestId('check-addressLookup')).toContainText('Connected')
+    await page.screenshot({ path: 'docs/screenshots/09-admin-integrations.png', fullPage: true })
+  })
+
   test('cover survives a page reload', async ({ page }) => {
     await buyMotorPolicy(page)
 
