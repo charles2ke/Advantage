@@ -44,6 +44,7 @@ export function AddressLookupField({ value, onChange }: AddressLookupFieldProps)
         type="text"
         autoComplete="postal-code"
         value={value}
+        disabled={busy}
         onChange={(event) => {
           onChange(event.target.value)
           setAddress(null)
