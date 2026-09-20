@@ -124,9 +124,9 @@ e2e              Playwright end to end tests (screenshots are written to docs/sc
 
 ## Architecture
 
-- **Pure domain layer.** Everything in `src/domain` is side effect free: ids and timestamps are
-  passed in by the caller rather than generated inside, so quoting, issuing, renewing and claiming
-  are all deterministic and easy to test.
+- **Pure domain layer.** Everything in `src/domain` is side effect free: ids are passed in by the
+  caller, and timestamps are injectable but default to the current date when omitted, so quoting,
+  issuing, renewing and claiming remain easy to test.
 - **Single reducer.** Every state change goes through the pure reducer in `src/state/appReducer.ts`;
   `src/state/AppProvider.tsx` wires it to React context and mirrors the state into local storage.
 - **Static by design.** A minimal hash router (`src/router.ts`) keeps the app deployable as plain
