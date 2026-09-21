@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { useRoute } from './router'
 import { AdminPage } from './pages/AdminPage'
 import { ClaimsPage } from './pages/ClaimsPage'
@@ -14,6 +15,14 @@ const navItems = [
   { path: '/admin', label: 'Admin' },
 ]
 
+const pageTitles: Record<string, string> = {
+  '': 'Home',
+  quote: 'Get a quote',
+  policies: 'Your policies',
+  claims: 'Claims',
+  admin: 'Admin portal',
+}
+
 function isCurrent(navPath: string, segments: string[]): boolean {
   const section = segments[0] ? `/${segments[0]}` : '/'
   return navPath === section
@@ -23,6 +32,12 @@ export function App() {
   const { segments } = useRoute()
   const { state } = useApp()
   const section = segments[0] ?? ''
+
+  const pageTitle = pageTitles[section] ?? 'Page not found'
+
+  useEffect(() => {
+    document.title = `${pageTitle} — ${state.settings.brandName}`
+  }, [pageTitle, state.settings.brandName])
 
   let page
   switch (section) {
@@ -54,6 +69,13 @@ export function App() {
 
   return (
     <div className="app">
+      <button
+        type="button"
+        className="skip-link"
+        onClick={() => document.getElementById('main-content')?.focus()}
+      >
+        Skip to main content
+      </button>
       <header className="site-header">
         <div className="site-header__inner">
           <a className="brand" href="#/">
@@ -83,7 +105,9 @@ export function App() {
         </div>
       </header>
 
-      <main>{page}</main>
+      <main id="main-content" tabIndex={-1}>
+        {page}
+      </main>
 
       <footer className="site-footer">
         <div className="site-footer__inner">

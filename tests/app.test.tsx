@@ -51,6 +51,48 @@ describe('Advantage platform', () => {
     const alert = screen.getByRole('alert')
     expect(within(alert).getByText(/enter the name of the person/i)).toBeInTheDocument()
     expect(within(alert).getByText(/enter a valid email address/i)).toBeInTheDocument()
+    expect(alert).toHaveFocus()
+  })
+
+  it('moves focus to the main content from the skip link', async () => {
+    const user = userEvent.setup()
+    renderApp()
+
+    await user.click(screen.getByRole('button', { name: /skip to main content/i }))
+
+    expect(screen.getByRole('main')).toHaveFocus()
+  })
+
+  it('names the page in the document title', async () => {
+    const user = userEvent.setup()
+    renderApp()
+
+    expect(document.title).toBe('Home — Advantage')
+
+    await user.click(screen.getAllByRole('button', { name: /get a quote/i })[0])
+
+    expect(document.title).toBe('Get a quote — Advantage')
+  })
+
+  it('lets you step back to a completed step of the quote wizard', async () => {
+    const user = userEvent.setup()
+    renderApp()
+
+    await user.click(screen.getAllByRole('button', { name: /get a quote/i })[0])
+    await user.click(screen.getByRole('button', { name: /quote home insurance/i }))
+
+    await user.type(screen.getByLabelText(/full name/i), 'Alex Turner')
+    await user.type(screen.getByLabelText(/email address/i), 'alex@example.com')
+    await user.type(screen.getByLabelText(/date of birth/i), '1986-01-01')
+    await user.type(screen.getByLabelText(/postcode/i), 'M1 2AB')
+    await user.click(screen.getByRole('button', { name: /continue to cover/i }))
+
+    expect(screen.getByRole('heading', { name: /choose your cover/i })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /your details.*completed/i }))
+
+    expect(screen.getByRole('heading', { name: /about you/i })).toBeInTheDocument()
+    expect(screen.getByLabelText(/full name/i)).toHaveValue('Alex Turner')
   })
 
   it('quotes, buys and then claims on a policy', async () => {

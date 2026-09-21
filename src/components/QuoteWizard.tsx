@@ -5,6 +5,7 @@ import type { Applicant, Product, QuoteInput } from '../domain/types'
 import { navigate } from '../router'
 import { newId, useApp } from '../state/AppContext'
 import { AddressLookupField } from './AddressLookupField'
+import { ErrorSummary } from './ErrorSummary'
 import { CurrencyConverter } from './CurrencyConverter'
 import { PremiumSummary } from './PremiumSummary'
 
@@ -100,26 +101,39 @@ export function QuoteWizard({ product }: { product: Product }) {
 
   return (
     <div>
-      <ol className="steps">
-        {stepTitles.map((title, index) => (
-          <li key={title} aria-current={index === step ? 'step' : undefined}>
-            <span>
-              {index + 1}. {title}
-            </span>
-          </li>
-        ))}
+      <ol className="steps" aria-label={`Step ${step + 1} of ${stepTitles.length}`}>
+        {stepTitles.map((title, index) => {
+          const done = index < step
+          const label = `Step ${index + 1} of ${stepTitles.length}: ${title}`
+          return (
+            <li
+              key={title}
+              className={done ? 'steps__item steps__item--done' : 'steps__item'}
+              aria-current={index === step ? 'step' : undefined}
+            >
+              {done ? (
+                <button
+                  type="button"
+                  className="steps__link"
+                  onClick={() => {
+                    setErrors([])
+                    setStep(index)
+                  }}
+                >
+                  <span aria-hidden="true">✓</span> {index + 1}. {title}
+                  <span className="visually-hidden"> — completed, go back to this step</span>
+                </button>
+              ) : (
+                <span aria-label={label}>
+                  {index + 1}. {title}
+                </span>
+              )}
+            </li>
+          )
+        })}
       </ol>
 
-      {errors.length > 0 && (
-        <div className="alert alert--error" role="alert">
-          <strong>We need a few more details</strong>
-          <ul>
-            {errors.map((error) => (
-              <li key={error}>{error}</li>
-            ))}
-          </ul>
-        </div>
-      )}
+      <ErrorSummary title="We need a few more details" errors={errors} />
 
       <div className="grid grid--two">
         <div className="card">
@@ -253,7 +267,10 @@ export function QuoteWizard({ product }: { product: Product }) {
                 <button
                   type="button"
                   className="button button--secondary"
-                  onClick={() => setStep(0)}
+                  onClick={() => {
+                    setErrors([])
+                    setStep(0)
+                  }}
                 >
                   Back
                 </button>

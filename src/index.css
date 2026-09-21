@@ -68,6 +68,31 @@ a {
   min-height: 100svh;
 }
 
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 20;
+  border: 1px solid var(--line);
+  border-radius: 0 0 8px 0;
+  padding: 0.6rem 1rem;
+  font: inherit;
+  font-weight: 600;
+  background: var(--surface);
+  color: var(--brand-dark);
+  cursor: pointer;
+}
+
+.skip-link:focus-visible {
+  left: 0;
+  outline: 2px solid var(--brand);
+  outline-offset: -2px;
+}
+
+main:focus {
+  outline: none;
+}
+
 .site-header {
   background: var(--surface);
   border-bottom: 1px solid var(--line);
@@ -431,6 +456,33 @@ legend {
   font-size: 0.9rem;
 }
 
+.steps__item--done {
+  border-color: var(--success);
+  color: var(--success);
+  background: var(--success-soft);
+  padding: 0;
+}
+
+.steps__link {
+  font: inherit;
+  font-size: 0.9rem;
+  color: inherit;
+  background: none;
+  border: 0;
+  border-radius: 999px;
+  padding: 0.35rem 0.8rem;
+  cursor: pointer;
+}
+
+.steps__link:hover {
+  text-decoration: underline;
+}
+
+.steps__link:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
 .steps li[aria-current='step'] {
   border-color: var(--brand);
   color: var(--brand-dark);
@@ -511,6 +563,11 @@ legend {
   padding: 0.85rem 1rem;
   margin-bottom: 1rem;
   border: 1px solid;
+}
+
+.alert:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
 }
 
 .alert--error {
