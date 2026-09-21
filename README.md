@@ -24,6 +24,7 @@ claim against it. It runs entirely in the browser — no backend, no database an
 - [Testing](#testing)
 - [Project structure](#project-structure)
 - [Architecture](#architecture)
+- [Accessibility and UX](#accessibility-and-ux)
 - [Integrations](#integrations)
 - [How the premium is calculated](#how-the-premium-is-calculated)
 - [Deployment](#deployment)
@@ -54,6 +55,9 @@ claim against it. It runs entirely in the browser — no backend, no database an
 - **Real world integrations** — the platform calls live public services from the browser: postcodes
   are verified against postcodes.io and quote prices can be shown in another currency using the
   European Central Bank reference rates published by Frankfurter (`src/integrations/`).
+- **Accessible by default** — a skip link, focus management on validation errors, per page
+  document titles and a quote wizard you can step back through (`src/App.tsx`,
+  `src/components/ErrorSummary.tsx`).
 - **Persistence** — quotes, policies and claims are stored in the browser's local storage, so the
   platform runs as a static site with no backend (`src/state/storage.ts`).
 
@@ -96,7 +100,8 @@ All data lives in your browser's local storage; clearing site data resets the pl
 
 - **Unit and component tests** (`tests/`) run on Vitest with Testing Library and jsdom. They cover
   the rating engine, policy and claim lifecycles, settings, the state reducer, the integration
-  clients and the pages that use them.
+  clients, the accessibility behaviour (skip link, focus on errors, page titles) and the pages
+  that use them.
 - **End to end tests** (`e2e/advantage.spec.ts`) run on Playwright against the production build and
   walk the full journey: quote → policy → claim → admin. The screenshots in `docs/screenshots` are
   produced by this suite, so they stay in step with the UI.
@@ -133,6 +138,22 @@ e2e              Playwright end to end tests (screenshots are written to docs/sc
   files on any static host, including GitHub Pages.
 - **Isolated integrations.** External calls are confined to `src/integrations` behind a single
   result contract, so the rest of the app never deals with network failures directly.
+
+## Accessibility and UX
+
+The platform is keyboard and screen reader friendly:
+
+- **Skip to main content.** The first control on every page moves focus straight to `<main>`,
+  past the navigation.
+- **Announced errors.** Validation problems are collected into a single summary
+  (`src/components/ErrorSummary.tsx`) that is announced with `role="alert"` and takes focus, so
+  the reason a quote or claim was rejected is never missed.
+- **A wizard you can revisit.** The quote wizard shows which step you are on and which are
+  complete, and completed steps are buttons that take you back with your answers intact.
+- **Honest page titles.** The document title follows the route (`Get a quote — Advantage`), so
+  tabs, history and bookmarks stay meaningful.
+- **Live feedback.** The price panel updates as you answer, empty states explain what to do next,
+  and every status is shown as a labelled badge rather than colour alone.
 
 ## Integrations
 

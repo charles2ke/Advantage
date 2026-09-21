@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { ErrorSummary } from '../components/ErrorSummary'
 import { StatusBadge } from '../components/StatusBadge'
 import { getProduct } from '../domain/catalog'
 import {
@@ -79,16 +80,7 @@ export function ClaimsPage() {
           </div>
         ) : (
           <div className="card">
-            {errors.length > 0 && (
-              <div className="alert alert--error" role="alert">
-                <strong>We could not submit your claim</strong>
-                <ul>
-                  {errors.map((error) => (
-                    <li key={error}>{error}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
+            <ErrorSummary title="We could not submit your claim" errors={errors} />
             {submittedReference && (
               <div className="alert alert--success" role="status">
                 <strong>Claim {submittedReference} submitted.</strong>
