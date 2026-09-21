@@ -95,6 +95,15 @@ describe('Advantage platform', () => {
     expect(screen.getByLabelText(/full name/i)).toHaveValue('Alex Turner')
   })
 
+  it('prevents stepping back after buying a policy', async () => {
+    const user = userEvent.setup()
+    renderApp()
+
+    await buyMotorPolicy(user)
+
+    expect(screen.queryByRole('button', { name: /completed, go back/i })).not.toBeInTheDocument()
+  })
+
   it('quotes, buys and then claims on a policy', async () => {
     const user = userEvent.setup()
     renderApp()

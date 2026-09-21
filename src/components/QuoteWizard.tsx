@@ -111,7 +111,7 @@ export function QuoteWizard({ product }: { product: Product }) {
               className={done ? 'steps__item steps__item--done' : 'steps__item'}
               aria-current={index === step ? 'step' : undefined}
             >
-              {done ? (
+              {done && !policy ? (
                 <button
                   type="button"
                   className="steps__link"
