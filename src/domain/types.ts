@@ -110,10 +110,16 @@ export interface Policy {
   sumInsured: number
   excess: number
   coverageIds: string[]
+  /** Answers to the product risk questions, kept so the policy can be re-rated at renewal. */
+  riskAnswers: Record<string, string>
   premium: PremiumBreakdown
   startDate: string
   endDate: string
   quoteReference: string
+  /** When the policy was cancelled. Only set on cancelled policies. */
+  cancelledAt?: string
+  /** Premium returned to the policyholder on cancellation. Only set on cancelled policies. */
+  refund?: number
 }
 
 export type ClaimStatus = 'submitted' | 'in_review' | 'approved' | 'declined' | 'settled'
@@ -135,4 +141,6 @@ export interface Claim {
   status: ClaimStatus
   createdAt: string
   timeline: ClaimEvent[]
+  /** Amount paid to the policyholder. Only set once the claim is settled. */
+  settledAmount?: number
 }

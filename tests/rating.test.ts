@@ -7,10 +7,12 @@ import {
   calculateAge,
   createQuote,
   loyaltyRate,
+  quoteStatus,
   ratePremium,
   roundCurrency,
   validateQuoteInput,
 } from '../src/domain/rating'
+import { defaultSettings } from '../src/domain/settings'
 import type { QuoteInput } from '../src/domain/types'
 
 const now = new Date('2026-01-01T00:00:00.000Z')
@@ -164,5 +166,20 @@ describe('createQuote', () => {
     expect(quote.createdAt).toBe('2026-01-01T00:00:00.000Z')
     expect(quote.expiresAt).toBe('2026-01-31T00:00:00.000Z')
     expect(quote.premium.total).toBe(604.8)
+  })
+})
+
+describe('quoteStatus', () => {
+  const quote = createQuote(motorQuote(), { id: 'quote-1', sequence: 1, now })
+
+  it('can be bought until the moment it expires', () => {
+    expect(quoteStatus(quote, defaultSettings, new Date('2026-01-30T23:59:59.000Z'))).toBe('open')
+    expect(quoteStatus(quote, defaultSettings, new Date(quote.expiresAt))).toBe('expired')
+  })
+
+  it('cannot be bought once the product is taken off sale', () => {
+    expect(quoteStatus(quote, { ...defaultSettings, enabledProducts: ['home'] }, now)).toBe(
+      'unavailable',
+    )
   })
 })
