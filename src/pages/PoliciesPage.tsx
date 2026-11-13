@@ -34,12 +34,22 @@ export function PoliciesPage() {
   const { state, dispatch } = useApp()
   const [query, setQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<PolicyFilterStatus>('all')
+  // Policies renewed or cancelled here stay listed until the search changes, so the
+  // outcome can still be read when the policy no longer matches the status filter.
+  const [changedPolicyIds, setChangedPolicyIds] = useState<string[]>([])
   const now = new Date()
   const savedQuotes = state.quotes.filter(
     (quote) => !state.policies.some((policy) => policy.quoteReference === quote.reference),
   )
-  const visiblePolicies = filterPolicies(state.policies, { query, status: statusFilter }, now)
+  const matchingPolicies = filterPolicies(state.policies, { query, status: statusFilter }, now)
+  const visiblePolicies = state.policies.filter(
+    (policy) => matchingPolicies.includes(policy) || changedPolicyIds.includes(policy.id),
+  )
   const validityDays = state.settings.quoteValidityDays
+
+  function keepInView(policyId: string) {
+    setChangedPolicyIds((ids) => (ids.includes(policyId) ? ids : [...ids, policyId]))
+  }
 
   return (
     <div className="page">
@@ -73,7 +83,10 @@ export function PoliciesPage() {
                     type="search"
                     placeholder="Policy number, name or postcode"
                     value={query}
-                    onChange={(event) => setQuery(event.target.value)}
+                    onChange={(event) => {
+                      setQuery(event.target.value)
+                      setChangedPolicyIds([])
+                    }}
                   />
                 </div>
                 <div className="field field--inline">
@@ -81,7 +94,10 @@ export function PoliciesPage() {
                   <select
                     id="policyStatusFilter"
                     value={statusFilter}
-                    onChange={(event) => setStatusFilter(event.target.value as PolicyFilterStatus)}
+                    onChange={(event) => {
+                      setStatusFilter(event.target.value as PolicyFilterStatus)
+                      setChangedPolicyIds([])
+                    }}
                   >
                     <option value="all">All statuses</option>
                     {policyStatuses.map((status) => (
@@ -117,20 +133,22 @@ export function PoliciesPage() {
                   <PolicyCard
                     key={policy.id}
                     policy={policy}
-                    onRenew={() =>
+                    onRenew={() => {
+                      keepInView(policy.id)
                       dispatch({
                         type: 'policy/renewed',
                         policyId: policy.id,
                         now: new Date().toISOString(),
                       })
-                    }
-                    onCancel={() =>
+                    }}
+                    onCancel={() => {
+                      keepInView(policy.id)
                       dispatch({
                         type: 'policy/cancelled',
                         policyId: policy.id,
                         now: new Date().toISOString(),
                       })
-                    }
+                    }}
                   />
                 ))}
               </div>

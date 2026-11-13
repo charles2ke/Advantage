@@ -359,6 +359,28 @@ describe('Managing policies', () => {
     expect(screen.queryByRole('button', { name: /cancel policy/i })).not.toBeInTheDocument()
   })
 
+  it('keeps a cancelled policy in view until the search changes', async () => {
+    const user = userEvent.setup()
+    seed([...buyPolicy('p1', daysAgo(20)), ...buyPolicy('p2', daysAgo(10))], '/policies')
+    renderApp()
+
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Status' }), 'active')
+    const [card] = screen.getAllByRole('article')
+    expect(card).toHaveTextContent('ADV-AUTO-000002')
+
+    await user.click(within(card).getByRole('button', { name: /cancel policy/i }))
+    await user.click(screen.getByRole('button', { name: /yes, cancel/i }))
+
+    expect(screen.getByRole('status')).toHaveTextContent(/policy cancelled/i)
+    expect(screen.getByRole('status')).toHaveFocus()
+    expect(screen.getByText(/showing 2 of 2 policies/i)).toBeInTheDocument()
+
+    await user.type(screen.getByRole('searchbox', { name: /search/i }), 'adv')
+
+    expect(screen.getByText(/showing 1 of 2 policies/i)).toBeInTheDocument()
+    expect(screen.queryByText('ADV-AUTO-000002')).not.toBeInTheDocument()
+  })
+
   it('shows a printable policy schedule with the claims made', async () => {
     const user = userEvent.setup()
     const print = vi.spyOn(window, 'print').mockImplementation(() => {})
