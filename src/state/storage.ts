@@ -159,7 +159,23 @@ function isQuote(value: unknown): value is Quote {
   )
 }
 
-function isPolicy(value: unknown): value is Policy {
+function isClaimEvent(value: unknown): value is ClaimEvent {
+  return (
+    isRecord(value) &&
+    isClaimStatus(value.status) &&
+    isString(value.note) &&
+    isString(value.at)
+  )
+}
+
+function isOptional<T>(value: unknown, guard: (candidate: unknown) => candidate is T): boolean {
+  return value === undefined || guard(value)
+}
+
+/** A policy as persisted: policies saved before risk answers were kept on them have none. */
+type StoredPolicy = Omit<Policy, 'riskAnswers'> & { riskAnswers?: Record<string, string> }
+
+function isStoredPolicy(value: unknown): value is StoredPolicy {
   return (
     isRecord(value) &&
     isString(value.id) &&
@@ -170,20 +186,23 @@ function isPolicy(value: unknown): value is Policy {
     isFiniteNumber(value.sumInsured) &&
     isFiniteNumber(value.excess) &&
     isStringArray(value.coverageIds) &&
+    isOptional(value.riskAnswers, isStringRecord) &&
     isPremiumBreakdown(value.premium) &&
     isString(value.startDate) &&
     isString(value.endDate) &&
-    isString(value.quoteReference)
+    isString(value.quoteReference) &&
+    isOptional(value.cancelledAt, isString) &&
+    isOptional(value.refund, isFiniteNumber)
   )
 }
 
-function isClaimEvent(value: unknown): value is ClaimEvent {
-  return (
-    isRecord(value) &&
-    isClaimStatus(value.status) &&
-    isString(value.note) &&
-    isString(value.at)
-  )
+/** Fills in missing risk answers from the quote the policy was bought from. */
+function withRiskAnswers(policy: StoredPolicy, quotes: Quote[]): Policy {
+  const riskAnswers =
+    policy.riskAnswers ??
+    quotes.find((quote) => quote.reference === policy.quoteReference)?.input.riskAnswers ??
+    {}
+  return { ...policy, riskAnswers }
 }
 
 function isClaim(value: unknown): value is Claim {
@@ -199,7 +218,8 @@ function isClaim(value: unknown): value is Claim {
     isClaimStatus(value.status) &&
     isString(value.createdAt) &&
     Array.isArray(value.timeline) &&
-    value.timeline.every(isClaimEvent)
+    value.timeline.every(isClaimEvent) &&
+    isOptional(value.settledAmount, isFiniteNumber)
   )
 }
 
@@ -261,8 +281,56 @@ function coerceIntegrations(value: unknown): IntegrationSettings {
   return Object.fromEntries(entries) as IntegrationSettings
 }
 
-function coerceSequence(value: unknown): number {
-  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 ? value : 0
+/** The number at the end of a reference such as QT-AUTO-00012. */
+function referenceNumber(reference: string): number {
+  const match = /(\d+)$/.exec(reference)
+  const value = match ? Number(match[1]) : 0
+  return Number.isSafeInteger(value) ? value : 0
+}
+
+/**
+ * The stored sequence, raised to the highest reference already issued so a
+ * corrupt or out of date counter can never hand out the same reference twice.
+ */
+function coerceSequence(value: unknown, references: string[]): number {
+  const stored = typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 ? value : 0
+  return references.reduce(
+    (highest, reference) => Math.max(highest, referenceNumber(reference)),
+    stored,
+  )
+}
+
+/** Reads a whole application state, dropping anything that is not valid. */
+export function coerceState(value: unknown): AppState {
+  if (!isRecord(value)) {
+    return emptyState
+  }
+  const quotes = Array.isArray(value.quotes) ? value.quotes.filter(isQuote) : []
+  const policies = Array.isArray(value.policies)
+    ? value.policies.filter(isStoredPolicy).map((policy) => withRiskAnswers(policy, quotes))
+    : []
+  const claims = Array.isArray(value.claims) ? value.claims.filter(isClaim) : []
+  const sequences = isRecord(value.sequences) ? value.sequences : {}
+  return {
+    settings: coerceSettings(value.settings),
+    quotes,
+    policies,
+    claims,
+    sequences: {
+      quote: coerceSequence(
+        sequences.quote,
+        quotes.map((quote) => quote.reference),
+      ),
+      policy: coerceSequence(
+        sequences.policy,
+        policies.map((policy) => policy.policyNumber),
+      ),
+      claim: coerceSequence(
+        sequences.claim,
+        claims.map((claim) => claim.reference),
+      ),
+    },
+  }
 }
 
 /** Reads persisted state, falling back to an empty state when it is missing or corrupt. */
@@ -272,25 +340,7 @@ export function loadState(storage: Storage | undefined = safeStorage()): AppStat
   }
   try {
     const raw = storage.getItem(STORAGE_KEY)
-    if (!raw) {
-      return emptyState
-    }
-    const parsed: unknown = JSON.parse(raw)
-    if (!isRecord(parsed)) {
-      return emptyState
-    }
-    const sequences = isRecord(parsed.sequences) ? parsed.sequences : {}
-    return {
-      settings: coerceSettings(parsed.settings),
-      quotes: Array.isArray(parsed.quotes) ? parsed.quotes.filter(isQuote) : [],
-      policies: Array.isArray(parsed.policies) ? parsed.policies.filter(isPolicy) : [],
-      claims: Array.isArray(parsed.claims) ? parsed.claims.filter(isClaim) : [],
-      sequences: {
-        quote: coerceSequence(sequences.quote),
-        policy: coerceSequence(sequences.policy),
-        claim: coerceSequence(sequences.claim),
-      },
-    }
+    return raw ? coerceState(JSON.parse(raw)) : emptyState
   } catch {
     return emptyState
   }
@@ -301,7 +351,11 @@ export function saveState(state: AppState, storage: Storage | undefined = safeSt
     return
   }
   try {
-    storage.setItem(STORAGE_KEY, JSON.stringify(state))
+    const serialised = JSON.stringify(state)
+    // Writing unchanged data would still notify every other open tab.
+    if (storage.getItem(STORAGE_KEY) !== serialised) {
+      storage.setItem(STORAGE_KEY, serialised)
+    }
   } catch {
     // Storage can be unavailable (private mode, quota); the app still works in memory.
   }

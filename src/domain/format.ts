@@ -30,3 +30,17 @@ export function formatDate(value: string): string {
   const date = new Date(value)
   return Number.isNaN(date.getTime()) ? '—' : dateFormatter.format(date)
 }
+
+export const percentFormatter = new Intl.NumberFormat('en-GB', {
+  style: 'percent',
+  maximumFractionDigits: 1,
+})
+
+export function formatPercent(rate: number): string {
+  return percentFormatter.format(rate)
+}
+
+/** A count with its noun, such as "1 policy" or "3 policies". */
+export function formatCount(count: number, singular: string, plural = `${singular}s`): string {
+  return `${count} ${count === 1 ? singular : plural}`
+}
