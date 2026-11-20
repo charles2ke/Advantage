@@ -1,5 +1,5 @@
 import { getProduct } from './catalog'
-import { defaultSettings, type PlatformSettings } from './settings'
+import { defaultSettings, isProductEnabled, type PlatformSettings } from './settings'
 import type { Applicant, PremiumBreakdown, Product, Quote, QuoteInput } from './types'
 
 /*
@@ -196,4 +196,21 @@ export function createQuote(
     input,
     premium: ratePremium(input, now, settings),
   }
+}
+
+export function isQuoteExpired(quote: Quote, on: Date): boolean {
+  return new Date(quote.expiresAt).getTime() <= on.getTime()
+}
+
+/**
+ * Whether a saved quote can still be bought: it must be within its validity
+ * period and its product must still be on sale.
+ */
+export type QuoteStatus = 'open' | 'expired' | 'unavailable'
+
+export function quoteStatus(quote: Quote, settings: PlatformSettings, on: Date): QuoteStatus {
+  if (isQuoteExpired(quote, on)) {
+    return 'expired'
+  }
+  return isProductEnabled(settings, quote.productId) ? 'open' : 'unavailable'
 }

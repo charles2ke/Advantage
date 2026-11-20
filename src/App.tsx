@@ -4,6 +4,7 @@ import { AdminPage } from './pages/AdminPage'
 import { ClaimsPage } from './pages/ClaimsPage'
 import { HomePage } from './pages/HomePage'
 import { PoliciesPage } from './pages/PoliciesPage'
+import { PolicySchedulePage } from './pages/PolicySchedulePage'
 import { QuotePage } from './pages/QuotePage'
 import { useApp } from './state/AppContext'
 
@@ -33,7 +34,10 @@ export function App() {
   const { state } = useApp()
   const section = segments[0] ?? ''
 
-  const pageTitle = pageTitles[section] ?? 'Page not found'
+  const pageTitle =
+    section === 'policies' && segments[1]
+      ? `Policy schedule ${segments[1]}`
+      : (pageTitles[section] ?? 'Page not found')
 
   useEffect(() => {
     document.title = `${pageTitle} — ${state.settings.brandName}`
@@ -48,7 +52,7 @@ export function App() {
       page = <QuotePage productId={segments[1]} />
       break
     case 'policies':
-      page = <PoliciesPage />
+      page = segments[1] ? <PolicySchedulePage policyNumber={segments[1]} /> : <PoliciesPage />
       break
     case 'claims':
       page = <ClaimsPage />

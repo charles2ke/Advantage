@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState, type ChangeEvent } from 'react'
+import { ConfirmPanel } from '../components/ConfirmPanel'
 import { products } from '../domain/catalog'
-import { formatCurrency } from '../domain/format'
+import { formatCount, formatCurrency, formatDate } from '../domain/format'
 import {
   defaultSettings,
   validateSettings,
@@ -10,6 +11,27 @@ import {
 import { integrationCatalog, type IntegrationId } from '../integrations/catalog'
 import type { ProductId } from '../domain/types'
 import { useApp } from '../state/AppContext'
+import { backupFileName, createBackup, readBackup, type BackupSummary } from '../state/backup'
+import type { AppState } from '../state/storage'
+
+/** Browsers keep about 5 MB for each site, so a larger file could never be restored. */
+const MAX_BACKUP_BYTES = 5 * 1024 * 1024
+
+type RestoreStep =
+  | { step: 'invalid'; fileName: string; error: string }
+  | { step: 'confirm'; fileName: string; state: AppState; summary: BackupSummary }
+  | { step: 'restored' }
+
+function backupContents(summary: BackupSummary): string {
+  const backedUp = Number.isNaN(new Date(summary.exportedAt).getTime())
+    ? ''
+    : `, backed up on ${formatDate(summary.exportedAt)},`
+  return `${backedUp} contains ${formatCount(summary.quotes, 'quote')}, ${formatCount(
+    summary.policies,
+    'policy',
+    'policies',
+  )} and ${formatCount(summary.claims, 'claim')}.`
+}
 
 function toPercent(rate: number): string {
   return (Math.round(rate * 10000) / 100).toString()
@@ -28,6 +50,16 @@ export function AdminPage() {
   const [confirmingReset, setConfirmingReset] = useState(false)
   const [checking, setChecking] = useState<IntegrationId | null>(null)
   const [checks, setChecks] = useState<Record<string, { ok: boolean; message: string }>>({})
+  const [restore, setRestore] = useState<RestoreStep | null>(null)
+  const backupFileInput = useRef<HTMLInputElement>(null)
+  const restoredNotice = useRef<HTMLDivElement>(null)
+  const restoreStep = restore?.step
+
+  useEffect(() => {
+    if (restoreStep === 'restored') {
+      restoredNotice.current?.focus()
+    }
+  }, [restoreStep])
 
   function update(patch: Partial<PlatformSettings>) {
     setDraft((current) => ({ ...current, ...patch }))
@@ -85,6 +117,7 @@ export function AdminPage() {
     }
     dispatch({ type: 'settings/updated', settings })
     setSaved(true)
+    clearRestoredNotice()
   }
 
   function restoreDefaults() {
@@ -92,11 +125,79 @@ export function AdminPage() {
     setErrors([])
     dispatch({ type: 'settings/reset' })
     setSaved(true)
+    clearRestoredNotice()
+  }
+
+  function clearRestoredNotice() {
+    setRestore((current) => (current?.step === 'restored' ? null : current))
   }
 
   function clearData() {
     dispatch({ type: 'state/reset' })
     setConfirmingReset(false)
+    setRestore(null)
+  }
+
+  function downloadBackup() {
+    const now = new Date()
+    const url = URL.createObjectURL(
+      new Blob([createBackup(state, now)], { type: 'application/json' }),
+    )
+    const link = document.createElement('a')
+    link.href = url
+    link.download = backupFileName(state.settings.brandName, now)
+    document.body.append(link)
+    link.click()
+    link.remove()
+    // Some browsers read the file after the click has returned, so the URL is kept for a while.
+    window.setTimeout(() => URL.revokeObjectURL(url), 40_000)
+  }
+
+  async function chooseBackup(event: ChangeEvent<HTMLInputElement>) {
+    const input = event.currentTarget
+    const file = input.files?.[0]
+    if (!file) {
+      setRestore(null)
+      return
+    }
+    // Clearing the input lets the same file be chosen again after cancelling.
+    input.value = ''
+    if (file.size > MAX_BACKUP_BYTES) {
+      setRestore({
+        step: 'invalid',
+        fileName: file.name,
+        error: 'This file is too large to be a backup of this platform.',
+      })
+      return
+    }
+    let text: string
+    try {
+      text = await file.text()
+    } catch {
+      setRestore({ step: 'invalid', fileName: file.name, error: 'This file could not be opened.' })
+      return
+    }
+    const result = readBackup(text)
+    setRestore(
+      result.ok
+        ? { step: 'confirm', fileName: file.name, state: result.state, summary: result.summary }
+        : { step: 'invalid', fileName: file.name, error: result.error },
+    )
+  }
+
+  function restoreBackup(restored: AppState) {
+    dispatch({ type: 'state/replaced', state: restored })
+    setDraft(restored.settings)
+    setErrors([])
+    setSaved(false)
+    setChecks({})
+    setConfirmingReset(false)
+    setRestore({ step: 'restored' })
+  }
+
+  function cancelRestore() {
+    setRestore(null)
+    backupFileInput.current?.focus()
   }
 
   const annualPremium = state.policies.reduce((total, policy) => total + policy.premium.total, 0)
@@ -361,36 +462,123 @@ export function AdminPage() {
 
       <section className="section">
         <h2>Data</h2>
-        <div className="card">
-          <p className="field__help">
-            Clearing the data removes every quote, policy and claim stored in this browser. The
-            platform settings above are kept.
-          </p>
-          <div className="button-row">
-            {confirmingReset ? (
-              <>
-                <span className="field__help">This cannot be undone.</span>
-                <button type="button" className="button button--danger" onClick={clearData}>
-                  Yes, clear all data
-                </button>
+        <div className="grid grid--two">
+          <section className="card">
+            <h3>Back up and restore</h3>
+            <p className="field__help">
+              Everything is stored in this browser only. Download a backup to keep a copy of the
+              quotes, policies, claims and settings, or restore one to move the platform to another
+              browser.
+            </p>
+            <div className="button-row">
+              <button type="button" className="button" onClick={downloadBackup}>
+                Download a backup
+              </button>
+            </div>
+            <div className="field backup-file">
+              <label htmlFor="backupFile">Restore from a backup file</label>
+              <input
+                id="backupFile"
+                ref={backupFileInput}
+                type="file"
+                accept=".json,application/json"
+                onChange={(event) => {
+                  void chooseBackup(event)
+                }}
+              />
+              <span className="field__help">
+                You can check what the file contains before anything is replaced.
+              </span>
+            </div>
+            {restore?.step === 'invalid' && (
+              <div className="alert alert--error" role="alert">
+                <strong>{restore.fileName} cannot be restored</strong>
+                <p>{restore.error}</p>
+              </div>
+            )}
+            {restore?.step === 'confirm' && (
+              <ConfirmPanel
+                label="Confirm restore"
+                actions={
+                  <>
+                    <button
+                      type="button"
+                      className="button button--danger"
+                      onClick={() => restoreBackup(restore.state)}
+                    >
+                      Restore this backup
+                    </button>
+                    <button
+                      type="button"
+                      className="button button--secondary"
+                      onClick={cancelRestore}
+                    >
+                      Cancel
+                    </button>
+                  </>
+                }
+              >
+                <p data-testid="backup-summary">
+                  <strong>{restore.fileName}</strong>
+                  {backupContents(restore.summary)}
+                </p>
+                {restore.summary.skipped > 0 && (
+                  <p className="field__help">
+                    {formatCount(restore.summary.skipped, 'record')} in the file{' '}
+                    {restore.summary.skipped === 1 ? 'is' : 'are'} not valid and will be left out.
+                  </p>
+                )}
+                <p className="field__help">
+                  Restoring replaces all of the quotes, policies, claims and settings in this
+                  browser.
+                </p>
+              </ConfirmPanel>
+            )}
+            {restore?.step === 'restored' && (
+              <div
+                className="alert alert--success"
+                role="status"
+                tabIndex={-1}
+                ref={restoredNotice}
+              >
+                Backup restored. The platform now shows the data and settings from the file.
+              </div>
+            )}
+          </section>
+          <section className="card">
+            <h3>Clear data</h3>
+            <p className="field__help">
+              Clearing the data removes every quote, policy and claim stored in this browser. The
+              platform settings above are kept.
+            </p>
+            <div className="button-row">
+              {confirmingReset ? (
+                <>
+                  <span className="field__help">
+                    This cannot be undone. Download a backup first if you may need the data again.
+                  </span>
+                  <button type="button" className="button button--danger" onClick={clearData}>
+                    Yes, clear all data
+                  </button>
+                  <button
+                    type="button"
+                    className="button button--secondary"
+                    onClick={() => setConfirmingReset(false)}
+                  >
+                    Keep data
+                  </button>
+                </>
+              ) : (
                 <button
                   type="button"
-                  className="button button--secondary"
-                  onClick={() => setConfirmingReset(false)}
+                  className="button button--danger"
+                  onClick={() => setConfirmingReset(true)}
                 >
-                  Keep data
+                  Clear all data
                 </button>
-              </>
-            ) : (
-              <button
-                type="button"
-                className="button button--danger"
-                onClick={() => setConfirmingReset(true)}
-              >
-                Clear all data
-              </button>
-            )}
-          </div>
+              )}
+            </div>
+          </section>
         </div>
       </section>
     </section>

@@ -1,9 +1,11 @@
 import { useMemo, useState } from 'react'
 import { formatCurrency, formatDate, formatWholeCurrency } from '../domain/format'
-import { ratePremium, validateApplicant, validateQuoteInput } from '../domain/rating'
+import { countPoliciesInForce } from '../domain/policies'
+import { quoteStatus, ratePremium, validateApplicant, validateQuoteInput } from '../domain/rating'
 import type { Applicant, Product, QuoteInput } from '../domain/types'
 import { navigate } from '../router'
 import { newId, useApp } from '../state/AppContext'
+import { savedApplicant } from '../state/selectors'
 import { AddressLookupField } from './AddressLookupField'
 import { ErrorSummary } from './ErrorSummary'
 import { CurrencyConverter } from './CurrencyConverter'
@@ -26,7 +28,11 @@ function defaultExcess(product: Product): number {
 export function QuoteWizard({ product }: { product: Product }) {
   const { state, dispatch } = useApp()
   const [step, setStep] = useState(0)
-  const [applicant, setApplicant] = useState<Applicant>(emptyApplicant)
+  // Returning customers start with the details from their last quote or policy.
+  const [applicant, setApplicant] = useState<Applicant>(
+    () => savedApplicant(state) ?? emptyApplicant,
+  )
+  const [prefilled, setPrefilled] = useState(() => savedApplicant(state) !== undefined)
   const [sumInsured, setSumInsured] = useState(product.sumInsured.default)
   const [excess, setExcess] = useState(() => defaultExcess(product))
   const [coverageIds, setCoverageIds] = useState<string[]>([])
@@ -34,7 +40,7 @@ export function QuoteWizard({ product }: { product: Product }) {
   const [errors, setErrors] = useState<string[]>([])
   const [quoteId, setQuoteId] = useState<string | null>(null)
 
-  const existingPolicies = state.policies.filter((policy) => policy.status === 'active').length
+  const existingPolicies = countPoliciesInForce(state.policies, new Date())
 
   const input: QuoteInput = useMemo(
     () => ({
@@ -54,9 +60,16 @@ export function QuoteWizard({ product }: { product: Product }) {
   const policy = quote
     ? state.policies.find((candidate) => candidate.quoteReference === quote.reference)
     : undefined
+  const status = quote ? quoteStatus(quote, state.settings, new Date()) : undefined
 
   function updateApplicant(patch: Partial<Applicant>) {
     setApplicant((current) => ({ ...current, ...patch }))
+  }
+
+  function clearApplicant() {
+    setApplicant(emptyApplicant)
+    setPrefilled(false)
+    document.getElementById('fullName')?.focus()
   }
 
   function toggleCoverage(coverageId: string) {
@@ -71,6 +84,7 @@ export function QuoteWizard({ product }: { product: Product }) {
     const found = validateApplicant(applicant)
     setErrors(found)
     if (found.length === 0) {
+      setPrefilled(false)
       setStep(1)
     }
   }
@@ -140,6 +154,17 @@ export function QuoteWizard({ product }: { product: Product }) {
           {step === 0 && (
             <>
               <h2>About you</h2>
+              {prefilled && (
+                <div className="alert alert--info">
+                  <p>
+                    We have filled in your details from your last quote. Check they are still
+                    correct.
+                  </p>
+                  <button type="button" className="button button--secondary" onClick={clearApplicant}>
+                    Clear my details
+                  </button>
+                </div>
+              )}
               <div className="field">
                 <label htmlFor="fullName">Full name</label>
                 <input
@@ -294,6 +319,19 @@ export function QuoteWizard({ product }: { product: Product }) {
                     policies page.
                   </p>
                 </div>
+              ) : status !== 'open' ? (
+                <>
+                  <div className="alert alert--error" role="alert">
+                    {status === 'expired'
+                      ? 'This quote has expired and can no longer be bought.'
+                      : `${product.name} is not on sale at the moment, so this quote cannot be bought.`}
+                  </div>
+                  <div className="button-row">
+                    <button type="button" className="button" onClick={() => setStep(1)}>
+                      Get a new price
+                    </button>
+                  </div>
+                </>
               ) : (
                 <div className="button-row">
                   <button type="button" className="button" onClick={buyPolicy}>

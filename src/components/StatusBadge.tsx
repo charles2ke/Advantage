@@ -1,11 +1,6 @@
 import type { ClaimStatus, PolicyStatus } from '../domain/types'
 import { claimStatusLabels } from '../domain/claims'
-
-const policyStatusLabels: Record<PolicyStatus, string> = {
-  active: 'Active',
-  lapsed: 'Lapsed',
-  cancelled: 'Cancelled',
-}
+import { policyStatusLabels } from '../domain/policies'
 
 export function StatusBadge({ status }: { status: PolicyStatus | ClaimStatus }) {
   const label =

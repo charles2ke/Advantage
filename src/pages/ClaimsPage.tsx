@@ -3,13 +3,17 @@ import { ErrorSummary } from '../components/ErrorSummary'
 import { StatusBadge } from '../components/StatusBadge'
 import { getProduct } from '../domain/catalog'
 import {
+  claimFilterLabels,
   claimStatusLabels,
   claimTransitions,
+  matchesClaimFilter,
+  remainingSumInsured,
   settlementAmount,
   validateClaimInput,
+  type ClaimFilter,
   type ClaimInput,
 } from '../domain/claims'
-import { formatCurrency, formatDate } from '../domain/format'
+import { formatCurrency, formatDate, formatWholeCurrency } from '../domain/format'
 import type { Claim, ClaimStatus } from '../domain/types'
 import { navigate } from '../router'
 import { newId, useApp } from '../state/AppContext'
@@ -22,6 +26,8 @@ const transitionNotes: Record<ClaimStatus, string> = {
   settled: 'Settlement has been paid to the policyholder.',
 }
 
+const claimFilters = Object.keys(claimFilterLabels) as ClaimFilter[]
+
 export function ClaimsPage() {
   const { state, dispatch } = useApp()
   const claimablePolicies = state.policies.filter((policy) => policy.status !== 'cancelled')
@@ -32,6 +38,9 @@ export function ClaimsPage() {
   const [amountClaimed, setAmountClaimed] = useState('')
   const [errors, setErrors] = useState<string[]>([])
   const [submittedClaimId, setSubmittedClaimId] = useState<string | null>(null)
+  const [filter, setFilter] = useState<ClaimFilter>('all')
+  const selectedPolicy = claimablePolicies.find((policy) => policy.policyNumber === policyNumber)
+  const visibleClaims = state.claims.filter((claim) => matchesClaimFilter(claim, filter))
   const submittedReference = useMemo(
     () => state.claims.find((claim) => claim.id === submittedClaimId)?.reference ?? null,
     [state.claims, submittedClaimId],
@@ -46,7 +55,7 @@ export function ClaimsPage() {
     }
     const policy = state.policies.find((candidate) => candidate.policyNumber === policyNumber)
     const now = new Date()
-    const found = validateClaimInput(input, policy, now)
+    const found = validateClaimInput(input, policy, now, state.claims)
     setErrors(found)
     setSubmittedClaimId(null)
     if (found.length > 0 || !policy) {
@@ -93,6 +102,7 @@ export function ClaimsPage() {
               <select
                 id="policyNumber"
                 value={policyNumber}
+                aria-describedby={selectedPolicy ? 'policyNumber-help' : undefined}
                 onChange={(event) => setPolicyNumber(event.target.value)}
               >
                 <option value="">Please choose…</option>
@@ -102,6 +112,14 @@ export function ClaimsPage() {
                   </option>
                 ))}
               </select>
+              {selectedPolicy && (
+                <span id="policyNumber-help" className="field__help">
+                  You can claim up to{' '}
+                  {formatCurrency(remainingSumInsured(selectedPolicy, state.claims))} in this period
+                  of cover. An excess of {formatWholeCurrency(selectedPolicy.excess)} applies to
+                  each claim.
+                </span>
+              )}
             </div>
             <div className="field">
               <label htmlFor="incidentDate">Date of the incident</label>
@@ -144,23 +162,54 @@ export function ClaimsPage() {
       </section>
 
       <section className="section">
-        <h2>Your claims</h2>
+        <div className="section__title">
+          <h2>Your claims</h2>
+          {state.claims.length > 1 && (
+            <div className="field field--inline">
+              <label htmlFor="claimFilter">Filter by status</label>
+              <select
+                id="claimFilter"
+                value={filter}
+                onChange={(event) => setFilter(event.target.value as ClaimFilter)}
+              >
+                {claimFilters.map((option) => (
+                  <option key={option} value={option}>
+                    {`${claimFilterLabels[option]} (${
+                      state.claims.filter((claim) => matchesClaimFilter(claim, option)).length
+                    })`}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
         {state.claims.length === 0 ? (
           <div className="card empty-state">
             <p>You have not made any claims.</p>
           </div>
+        ) : visibleClaims.length === 0 ? (
+          <div className="card empty-state">
+            <p>No claims match this filter.</p>
+            <button
+              type="button"
+              className="button button--secondary"
+              onClick={() => setFilter('all')}
+            >
+              Show all claims
+            </button>
+          </div>
         ) : (
           <div className="grid">
-            {state.claims.map((claim) => (
+            {visibleClaims.map((claim) => (
               <ClaimCard
                 key={claim.id}
                 claim={claim}
-                onAdvance={(status) =>
+                onAdvance={(status, note) =>
                   dispatch({
                     type: 'claim/advanced',
                     claimId: claim.id,
                     status,
-                    note: transitionNotes[status],
+                    note: note || transitionNotes[status],
                     now: new Date().toISOString(),
                   })
                 }
@@ -178,12 +227,18 @@ function ClaimCard({
   onAdvance,
 }: {
   claim: Claim
-  onAdvance: (status: ClaimStatus) => void
+  /** Moves the claim on; a blank note means the standard note for the new status. */
+  onAdvance: (status: ClaimStatus, note: string) => void
 }) {
   const { state } = useApp()
+  const [note, setNote] = useState('')
   const policy = state.policies.find((candidate) => candidate.policyNumber === claim.policyNumber)
   const product = getProduct(claim.productId)
   const nextStatuses = claimTransitions[claim.status]
+  const settled =
+    claim.settledAmount ??
+    (claim.status === 'settled' && policy ? settlementAmount(claim, policy) : undefined)
+  const noteId = `claim-note-${claim.id}`
 
   return (
     <article className="card record">
@@ -206,7 +261,13 @@ function ClaimCard({
           Amount claimed
           <strong>{formatCurrency(claim.amountClaimed)}</strong>
         </div>
-        {policy && (
+        {claim.status === 'settled' && settled !== undefined && (
+          <div>
+            Settlement paid
+            <strong>{formatCurrency(settled)}</strong>
+          </div>
+        )}
+        {claim.status !== 'settled' && claim.status !== 'declined' && policy && (
           <div>
             Payable after excess
             <strong>{formatCurrency(settlementAmount(claim, policy))}</strong>
@@ -227,18 +288,35 @@ function ClaimCard({
       </ol>
 
       {nextStatuses.length > 0 && (
-        <div className="button-row">
-          <span className="field__help">Claim handling actions:</span>
-          {nextStatuses.map((status) => (
-            <button
-              key={status}
-              type="button"
-              className={status === 'declined' ? 'button button--danger' : 'button button--secondary'}
-              onClick={() => onAdvance(status)}
-            >
-              Mark as {claimStatusLabels[status].toLowerCase()}
-            </button>
-          ))}
+        <div>
+          <div className="field">
+            <label htmlFor={noteId}>Handler note (optional)</label>
+            <input
+              id={noteId}
+              type="text"
+              value={note}
+              placeholder="Added to the timeline with the next step"
+              onChange={(event) => setNote(event.target.value)}
+            />
+          </div>
+          <div className="button-row">
+            <span className="field__help">Claim handling actions:</span>
+            {nextStatuses.map((status) => (
+              <button
+                key={status}
+                type="button"
+                className={
+                  status === 'declined' ? 'button button--danger' : 'button button--secondary'
+                }
+                onClick={() => {
+                  onAdvance(status, note.trim())
+                  setNote('')
+                }}
+              >
+                Mark as {claimStatusLabels[status].toLowerCase()}
+              </button>
+            ))}
+          </div>
         </div>
       )}
     </article>

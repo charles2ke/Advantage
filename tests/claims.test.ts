@@ -4,13 +4,15 @@ import {
   canTransition,
   claimReference,
   createClaim,
+  matchesClaimFilter,
+  remainingSumInsured,
   settlementAmount,
   validateClaimInput,
   type ClaimInput,
 } from '../src/domain/claims'
-import { issuePolicy } from '../src/domain/policies'
+import { issuePolicy, renewPolicy } from '../src/domain/policies'
 import { createQuote } from '../src/domain/rating'
-import type { QuoteInput } from '../src/domain/types'
+import type { ClaimStatus, QuoteInput } from '../src/domain/types'
 
 const now = new Date('2026-06-01T00:00:00.000Z')
 
@@ -133,6 +135,61 @@ describe('claim transitions', () => {
 
   it('refuses an invalid transition', () => {
     expect(() => advanceClaim(claim, 'settled', 'Paid.', now)).toThrow()
+  })
+
+  it('records the amount paid when the claim is settled', () => {
+    const reviewed = advanceClaim(claim, 'in_review', 'Handler assigned.', now)
+    const approved = advanceClaim(reviewed, 'approved', 'Cover confirmed.', now)
+
+    expect(advanceClaim(approved, 'settled', 'Paid.', now, policy).settledAmount).toBe(1900)
+  })
+})
+
+describe('claim limit for each period of cover', () => {
+  const earlier = createClaim(claimInput({ amountClaimed: 15_000 }), policy, {
+    id: 'claim-1',
+    sequence: 1,
+    now,
+  })
+
+  it('allows only what is left of the sum insured', () => {
+    expect(
+      validateClaimInput(claimInput({ amountClaimed: 6000 }), policy, now, [earlier]),
+    ).toEqual([
+      'Earlier claims have used part of the sum insured, so you can claim up to £5,000.00 for this period of cover.',
+    ])
+    expect(validateClaimInput(claimInput({ amountClaimed: 5000 }), policy, now, [earlier])).toEqual(
+      [],
+    )
+  })
+
+  it('says when the sum insured has been used up', () => {
+    expect(
+      validateClaimInput(claimInput({ amountClaimed: 100 }), policy, now, [
+        { ...earlier, amountClaimed: 20_000 },
+      ]),
+    ).toEqual(['Earlier claims have used up the sum insured for this period of cover.'])
+  })
+
+  it('leaves out declined claims and claims from an earlier period of cover', () => {
+    expect(remainingSumInsured(policy, [{ ...earlier, status: 'declined' }])).toBe(20_000)
+    expect(
+      remainingSumInsured(renewPolicy(policy, new Date('2026-12-20T00:00:00.000Z')), [earlier]),
+    ).toBe(20_000)
+  })
+})
+
+describe('matchesClaimFilter', () => {
+  const claim = createClaim(claimInput(), policy, { id: 'claim-1', sequence: 1, now })
+  const statuses: ClaimStatus[] = ['submitted', 'in_review', 'approved', 'settled', 'declined']
+  const matching = (filter: Parameters<typeof matchesClaimFilter>[1]) =>
+    statuses.filter((status) => matchesClaimFilter({ ...claim, status }, filter))
+
+  it('treats a claim as open until it is settled or declined', () => {
+    expect(matching('open')).toEqual(['submitted', 'in_review', 'approved'])
+    expect(matching('settled')).toEqual(['settled'])
+    expect(matching('declined')).toEqual(['declined'])
+    expect(matching('all')).toEqual(statuses)
   })
 })
 

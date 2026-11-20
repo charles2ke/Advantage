@@ -1,5 +1,6 @@
 import { ProductCard } from '../components/ProductCard'
-import { formatCurrency } from '../domain/format'
+import { isClaimOpen } from '../domain/claims'
+import { formatCurrency, formatPercent } from '../domain/format'
 import { policyStatusOn } from '../domain/policies'
 import { availableProducts } from '../domain/settings'
 import { navigate } from '../router'
@@ -9,9 +10,8 @@ export function HomePage() {
   const { state } = useApp()
   const now = new Date()
   const activePolicies = state.policies.filter((policy) => policyStatusOn(policy, now) === 'active')
-  const openClaims = state.claims.filter(
-    (claim) => claim.status !== 'settled' && claim.status !== 'declined',
-  )
+  const openClaims = state.claims.filter(isClaimOpen)
+  const { brandName, loyaltyDiscountPerPolicy, maxLoyaltyDiscount } = state.settings
   const annualSpend = activePolicies.reduce((total, policy) => total + policy.premium.total, 0)
   const catalogue = availableProducts(state.settings)
 
@@ -21,9 +21,9 @@ export function HomePage() {
         <div>
           <h1>Insurance that works the way you do</h1>
           <p>
-            Advantage brings quoting, policy administration and claims together in one place. Pick a
-            product, answer a handful of questions and buy cover in minutes — then manage everything
-            from the same dashboard.
+            {brandName} brings quoting, policy administration and claims together in one place.
+            Pick a product, answer a handful of questions and buy cover in minutes — then manage
+            everything from the same dashboard.
           </p>
           <div className="hero__actions">
             <button type="button" className="button" onClick={() => navigate('/quote')}>
@@ -39,10 +39,12 @@ export function HomePage() {
           </div>
         </div>
         <div className="hero__panel">
-          <h2>Why Advantage</h2>
+          <h2>Why {brandName}</h2>
           <ul>
             <li>Transparent pricing with a full premium breakdown</li>
-            <li>Up to 15% loyalty discount across your policies</li>
+            {loyaltyDiscountPerPolicy > 0 && maxLoyaltyDiscount > 0 && (
+              <li>Up to {formatPercent(maxLoyaltyDiscount)} loyalty discount across your policies</li>
+            )}
             <li>Claims tracked end to end, with no paperwork</li>
           </ul>
         </div>

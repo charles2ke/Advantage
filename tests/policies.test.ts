@@ -1,14 +1,20 @@
 import { describe, expect, it } from 'vitest'
+import { createClaim } from '../src/domain/claims'
 import {
   addMonths,
+  cancellationRefund,
   cancelPolicy,
+  countPoliciesInForce,
+  filterPolicies,
   isRenewable,
   issuePolicy,
   policyNumber,
   policyStatusOn,
+  rateRenewal,
   renewPolicy,
 } from '../src/domain/policies'
 import { createQuote } from '../src/domain/rating'
+import { defaultSettings } from '../src/domain/settings'
 import type { QuoteInput } from '../src/domain/types'
 
 const now = new Date('2026-01-01T00:00:00.000Z')
@@ -97,5 +103,115 @@ describe('policy lifecycle', () => {
     const renewed = renewPolicy(policy, new Date('2027-03-01T00:00:00.000Z'))
     expect(renewed.startDate).toBe('2027-03-01T00:00:00.000Z')
     expect(renewed.endDate).toBe('2028-03-01T00:00:00.000Z')
+  })
+})
+
+describe('rateRenewal', () => {
+  const policy = issuePolicy(quote, { id: 'policy-1', sequence: 1, startDate: now })
+  const on = new Date('2026-12-20T00:00:00.000Z')
+
+  it('prices the next term with the current settings', () => {
+    const current = rateRenewal(policy, { on, settings: defaultSettings, existingPolicies: 0 })
+    const afterTaxRise = rateRenewal(policy, {
+      on,
+      settings: { ...defaultSettings, taxRate: 0.2 },
+      existingPolicies: 0,
+    })
+
+    expect(afterTaxRise.netPremium).toBe(current.netPremium)
+    expect(afterTaxRise.tax).toBeGreaterThan(current.tax)
+  })
+
+  it('applies the loyalty discount for the other policies held', () => {
+    const loyal = rateRenewal(policy, { on, settings: defaultSettings, existingPolicies: 2 })
+    expect(loyal.loyaltyDiscount).toBeGreaterThan(0)
+  })
+
+  it('keeps the current premium when the risk answers were not recorded', () => {
+    const legacy = { ...policy, riskAnswers: {} }
+    expect(
+      rateRenewal(legacy, { on, settings: { ...defaultSettings, taxRate: 0.2 }, existingPolicies: 0 }),
+    ).toBe(legacy.premium)
+  })
+})
+
+describe('cancellation', () => {
+  // A premium of £365 makes the pro rata refund £1 for each unused day of cover.
+  const policy = {
+    ...issuePolicy(quote, { id: 'policy-1', sequence: 1, startDate: now }),
+    premium: { ...quote.premium, total: 365 },
+  }
+  const hundredDaysIn = new Date('2026-04-11T10:00:00.000Z')
+  const claim = createClaim(
+    {
+      policyNumber: policy.policyNumber,
+      incidentDate: '2026-03-01',
+      description: 'A burst pipe flooded the kitchen floor.',
+      amountClaimed: 1200,
+    },
+    policy,
+    { id: 'claim-1', sequence: 1, now: new Date('2026-03-02T00:00:00.000Z') },
+  )
+
+  it('refunds the premium for the unused days of cover', () => {
+    expect(cancellationRefund(policy, hundredDaysIn)).toBe(265)
+  })
+
+  it('refunds everything when cover has not started yet', () => {
+    expect(cancellationRefund(policy, new Date('2025-12-20T00:00:00.000Z'))).toBe(365)
+  })
+
+  it('refunds nothing once a claim has been made in the period of cover', () => {
+    expect(cancellationRefund(policy, hundredDaysIn, [claim])).toBe(0)
+    expect(cancellationRefund(policy, hundredDaysIn, [{ ...claim, status: 'declined' }])).toBe(265)
+  })
+
+  it('records when the policy was cancelled and the refund due', () => {
+    expect(cancelPolicy(policy, hundredDaysIn)).toMatchObject({
+      status: 'cancelled',
+      cancelledAt: '2026-04-11T10:00:00.000Z',
+      refund: 265,
+    })
+  })
+
+  it('keeps the original record when a cancelled policy is cancelled again', () => {
+    const cancelled = cancelPolicy(policy, hundredDaysIn)
+    expect(cancelPolicy(cancelled, new Date('2026-06-01T00:00:00.000Z'))).toBe(cancelled)
+  })
+})
+
+describe('countPoliciesInForce', () => {
+  it('leaves out lapsed and cancelled policies and the policy being priced', () => {
+    const policies = [
+      issuePolicy(quote, { id: 'a', sequence: 1, startDate: now }),
+      issuePolicy(quote, { id: 'b', sequence: 2, startDate: now }),
+      issuePolicy(quote, { id: 'c', sequence: 3, startDate: new Date('2024-06-01T00:00:00.000Z') }),
+      cancelPolicy(issuePolicy(quote, { id: 'd', sequence: 4, startDate: now }), now),
+    ]
+
+    expect(countPoliciesInForce(policies, now)).toBe(2)
+    expect(countPoliciesInForce(policies, now, 'a')).toBe(1)
+  })
+})
+
+describe('filterPolicies', () => {
+  const current = issuePolicy(quote, { id: 'a', sequence: 1, startDate: now })
+  const lapsed = {
+    ...issuePolicy(quote, { id: 'b', sequence: 2, startDate: new Date('2024-06-01T00:00:00.000Z') }),
+    holder: { ...input.applicant, fullName: 'Tom Reed', postcode: 'LS2 7EY' },
+  }
+  const policies = [current, lapsed]
+
+  it('matches the policy number, policyholder or postcode, ignoring case', () => {
+    expect(filterPolicies(policies, { query: 'adv-home-000002', status: 'all' }, now)).toEqual([
+      lapsed,
+    ])
+    expect(filterPolicies(policies, { query: 'priya', status: 'all' }, now)).toEqual([current])
+    expect(filterPolicies(policies, { query: ' ls2 ', status: 'all' }, now)).toEqual([lapsed])
+  })
+
+  it('filters by the status on the given date', () => {
+    expect(filterPolicies(policies, { query: '', status: 'lapsed' }, now)).toEqual([lapsed])
+    expect(filterPolicies(policies, { query: '', status: 'active' }, now)).toEqual([current])
   })
 })
